@@ -1,17 +1,22 @@
 package carehome.model;
 
 import java.io.Serializable;
-import java.time.LocalTime;
 
-public final class MedicationDose implements Serializable {
+public class MedicationDose implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public final String medicine;
-    public final String dose;
-    public final LocalTime time;
+    public String medicine;
+    public String dosage;   // e.g. "5mg", "1 tablet"
+    public String frequency; // e.g. "Twice a day"
 
-    public MedicationDose(String medicine, String dose, LocalTime time){
-        this.medicine=medicine; this.dose=dose; this.time=time;
+    public MedicationDose(String medicine, String dosage, String frequency) {
+        this.medicine = medicine;
+        this.dosage = dosage;
+        this.frequency = frequency;
     }
-    @Override public String toString(){ return medicine+" "+dose+" @"+time; }
+
+    @Override
+    public String toString() {
+        return medicine + " (" + dosage + ", " + frequency + ")";
+    }
 }
