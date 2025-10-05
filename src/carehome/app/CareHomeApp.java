@@ -11,18 +11,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Scanner;
 
-/**
- * Console runner aligned with current CareHome API (Commit 4/5).
- * Features:
- *  - Manager creates/updates staff (incl. credentials)
- *  - Manager allocates shifts
- *  - Check compliance (no args)
- *  - Save/Load single file
- *  - List staff & shifts
- *
- * NOTE: Bed/Resident/Prescription actions will be added later
- * when corresponding service methods are introduced.
- */
+
 public class CareHomeApp {
 
     private static final String DATA_FILE = "carehome_data.ser";
@@ -123,7 +112,7 @@ public class CareHomeApp {
                 System.out.println(" Bad date/time format. Use YYYY-MM-DDTHH:MM (e.g., 2025-10-06T08:00)");
             } catch (Exception e) {
                 // Domain exceptions (Unauthorized, ShiftRule, Compliance, etc.) land here
-                System.out.println("❌ " + e.getClass().getSimpleName() + ": " + e.getMessage());
+                System.out.println(" " + e.getClass().getSimpleName() + ": " + e.getMessage());
             }
         }
         sc.close();

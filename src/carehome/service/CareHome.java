@@ -178,7 +178,7 @@ public class CareHome implements Serializable {
     }
 
 
-    // === Role & Roster checks for clinical actions
+    //  Role & Roster checks for clinical actions
     private void requireRole(String actorId, carehome.model.Role expected) {
         var s = staffById.get(actorId);
         if (s == null || s.getRole() != expected)
