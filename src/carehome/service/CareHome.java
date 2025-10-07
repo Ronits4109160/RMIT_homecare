@@ -8,10 +8,10 @@ import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.util.*;
 
-
 public class CareHome implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
 
     //  Data Registries
     private final Map<String, Staff> staffById = new HashMap<>();
@@ -19,12 +19,14 @@ public class CareHome implements Serializable {
     private final List<String> nurseIds = new ArrayList<>();
     private String managerId; // one manager in system
 
+    private final Map<String, Bed> beds = new HashMap<>();
+    private final Map<String, List<Prescription>> prescriptionsByResident = new HashMap<>();
+    private final List<Administration> administrations = new ArrayList<>();
+
     private final List<Shift> shifts = new ArrayList<>();
     private final List<ActionLog> logs = new ArrayList<>();
 
-    // =============================
-    // === Manager-only helpers
-    // =============================
+    //  Manager-only helpers
     public boolean isManager(String staffId) {
         Staff s = staffById.get(staffId);
         return s != null && s.getRole() == Role.MANAGER;
@@ -36,16 +38,9 @@ public class CareHome implements Serializable {
     }
 
     //  Staff Operations
-    /**
-     * Manager-only add/update, EXCEPT bootstrap:
-     * If there are no staff yet and the provided staff is a MANAGER,
-     * allow creating that first manager without requiring an existing manager.
-     */
     public void addOrUpdateStaff(String actorId, Staff staff, String username, String password) {
         boolean bootstrap = staffById.isEmpty() && staff.getRole() == Role.MANAGER;
-        if (!bootstrap) {
-            requireManager(actorId);
-        }
+        if (!bootstrap) requireManager(actorId);
 
         staff.setCredentials(username, password);
         staffById.put(staff.getId(), staff);
@@ -63,7 +58,83 @@ public class CareHome implements Serializable {
         log(bootstrap ? "SYSTEM" : actorId, "ADD/UPDATE STAFF " + staff);
     }
 
-    //  Shift Operations
+
+    //Bed & Resident Operations
+
+
+    /** Manager adds a new resident to a vacant bed. */
+    public void addResidentToBed(String managerId, String bedId, Resident r) {
+        requireManager(managerId);
+        Bed b = beds.computeIfAbsent(bedId, Bed::new);
+        if (!b.isVacant())
+            throw new BedOccupiedException("Bed " + bedId + " is already occupied by " + b.occupant.name);
+
+        b.occupant = r;
+        log(managerId, "ADD RESIDENT " + r + " to bed " + bedId);
+    }
+
+    /** Returns the resident occupying a bed (if any). */
+    public Resident getResidentInBed(String actorId, String bedId) {
+        Bed b = beds.get(bedId);
+        if (b == null)
+            throw new NotFoundException("Bed " + bedId + " does not exist");
+        if (b.isVacant())
+            throw new NotFoundException("Bed " + bedId + " is vacant");
+
+        requireAuthorizedStaff(actorId);
+        log(actorId, "CHECK RESIDENT in bed " + bedId);
+        return b.occupant;
+    }
+
+    /** Nurse moves a resident from one bed to another (with checks). */
+    public void moveResident(String nurseId, String fromBedId, String toBedId, LocalDateTime when) {
+        requireRole(nurseId, Role.NURSE);
+        requireRostered(nurseId, when);
+
+        Bed from = beds.get(fromBedId);
+        Bed to = beds.computeIfAbsent(toBedId, Bed::new);
+        if (from == null || from.isVacant())
+            throw new NotFoundException("No resident in bed " + fromBedId);
+        if (!to.isVacant())
+            throw new BedOccupiedException("Bed " + toBedId + " already occupied by " + to.occupant.name);
+
+        Resident moving = from.occupant;
+        from.occupant = null;
+        to.occupant = moving;
+
+        log(nurseId, "MOVE RESIDENT " + moving.name + " from " + fromBedId + " to " + toBedId);
+    }
+
+    // =============================
+    // === Prescription Operations
+    // =============================
+    public void addPrescription(String doctorId, String bedId, Prescription p, LocalDateTime when) {
+        requireRole(doctorId, Role.DOCTOR);
+        requireRostered(doctorId, when);
+
+        Bed b = beds.get(bedId);
+        if (b == null || b.isVacant())
+            throw new NotFoundException("Cannot prescribe: bed " + bedId + " is vacant or missing");
+
+        prescriptionsByResident.computeIfAbsent(b.occupant.id, k -> new ArrayList<>()).add(p);
+        log(doctorId, "ADD PRESCRIPTION " + p.id + " for " + b.occupant.name + " in " + bedId);
+    }
+
+    public void administerMedication(String nurseId, String bedId, Administration admin, LocalDateTime when) {
+        requireRole(nurseId, Role.NURSE);
+        requireRostered(nurseId, when);
+
+        Bed b = beds.get(bedId);
+        if (b == null || b.isVacant())
+            throw new NotFoundException("Cannot administer: bed " + bedId + " vacant or missing");
+
+        administrations.add(admin);
+        log(nurseId, "ADMINISTER " + admin.medicine + " to " + b.occupant.name + " (" + bedId + ")");
+    }
+
+    // =============================
+    // === Shift Operations
+    // =============================
     public void allocateShift(String actorId, Shift shift) {
         requireManager(actorId);
 
@@ -73,15 +144,94 @@ public class CareHome implements Serializable {
         }
 
         shifts.add(shift);
-        log(actorId, "ALLOCATE SHIFT " + shift.getStaffId() + " "
-                + shift.getStart() + " -> " + shift.getEnd());
+        log(actorId, "ALLOCATE SHIFT " + shift.getStaffId() + " " + shift.getStart() + " -> " + shift.getEnd());
     }
 
     public List<Shift> getShifts() {
         return Collections.unmodifiableList(shifts);
     }
 
-    //  Logging
+    // =============================
+    // === Compliance
+    // =============================
+    public void checkCompliance() {
+        // Group shifts by staffId then by LocalDate
+        var byStaff = new HashMap<String, Map<java.time.LocalDate, List<Shift>>>();
+        for (var s : shifts) {
+            byStaff.computeIfAbsent(s.getStaffId(), k -> new HashMap<>())
+                    .computeIfAbsent(s.getStart().toLocalDate(), k -> new ArrayList<>())
+                    .add(s);
+        }
+
+        // Collect all dates that have any shifts
+        var allDates = new HashSet<java.time.LocalDate>();
+        for (var m : byStaff.values()) allDates.addAll(m.keySet());
+
+        // Nurses: max 8h per day
+        for (String nid : nurseIds) {
+            var daily = byStaff.getOrDefault(nid, Map.of());
+            for (var e : daily.entrySet()) {
+                var date = e.getKey();
+                var list = e.getValue();
+                long totalHours = list.stream().mapToLong(Shift::hours).sum();
+                if (totalHours > 8)
+                    throw new ComplianceException("Nurse " + nid + " exceeds 8h on " + date);
+            }
+        }
+
+        // Nurse coverage: at least one 08–16 and one 14–22 per day
+        for (var date : allDates) {
+            boolean hasMorning = false, hasEvening = false;
+            for (String nid : nurseIds) {
+                var list = byStaff.getOrDefault(nid, Map.of()).getOrDefault(date, List.of());
+                for (Shift s : list) {
+                    if (s.getStart().toLocalTime().equals(java.time.LocalTime.of(8,0)) &&
+                            s.getEnd().toLocalTime().equals(java.time.LocalTime.of(16,0))) hasMorning = true;
+                    if (s.getStart().toLocalTime().equals(java.time.LocalTime.of(14,0)) &&
+                            s.getEnd().toLocalTime().equals(java.time.LocalTime.of(22,0))) hasEvening = true;
+                }
+            }
+            if (!hasMorning || !hasEvening)
+                throw new ComplianceException("Nurse coverage missing on " + date + " (08-16 / 14-22)");
+        }
+
+        // Doctor coverage: >=1h per day
+        for (var date : allDates) {
+            long totalDoctorHours = 0;
+            for (String did : doctorIds) {
+                var list = byStaff.getOrDefault(did, Map.of()).getOrDefault(date, List.of());
+                totalDoctorHours += list.stream().mapToLong(Shift::hours).sum();
+            }
+            if (totalDoctorHours < 1)
+                throw new ComplianceException("Doctor coverage <1h on " + date);
+        }
+    }
+
+    // =============================
+    // === Auth & Roster Checks
+    // =============================
+    private void requireAuthorizedStaff(String actorId) {
+        if (!staffById.containsKey(actorId))
+            throw new UnauthorizedException("Unrecognized staff: " + actorId);
+    }
+
+    private void requireRole(String actorId, Role expected) {
+        var s = staffById.get(actorId);
+        if (s == null || s.getRole() != expected)
+            throw new UnauthorizedException("Requires role " + expected);
+    }
+
+    private void requireRostered(String actorId, LocalDateTime at) {
+        boolean ok = shifts.stream().anyMatch(sh ->
+                sh.getStaffId().equals(actorId) &&
+                        !at.isBefore(sh.getStart()) &&
+                        at.isBefore(sh.getEnd()));
+        if (!ok) throw new NotRosteredException("Actor " + actorId + " not rostered at " + at);
+    }
+
+    // =============================
+    // === Logging
+    // =============================
     private void log(String staffId, String action) {
         logs.add(new ActionLog(staffId, action));
         System.out.println("[LOG] " + staffId + ": " + action);
@@ -91,7 +241,7 @@ public class CareHome implements Serializable {
         return Collections.unmodifiableList(logs);
     }
 
-    // === Serialization (Save/Load)
+    //  Serialization (Save/Load)
     public void saveToFile(Path file) {
         try (ObjectOutputStream out = new ObjectOutputStream(Files.newOutputStream(file))) {
             out.writeObject(this);
@@ -111,105 +261,7 @@ public class CareHome implements Serializable {
         }
     }
 
-    //  Compliance
-    public void checkCompliance() {
-        // Index shifts by date
-        Map<String, Map<java.time.LocalDate, java.util.List<Shift>>> byStaff =
-                new HashMap<>();
-        for (Shift s : shifts) {
-            byStaff.computeIfAbsent(s.getStaffId(), k -> new HashMap<>())
-                    .computeIfAbsent(s.getStart().toLocalDate(), k -> new ArrayList<>())
-                    .add(s);
-        }
-
-        // Collect all dates that have any shifts in the system
-        var allDates = new java.util.HashSet<java.time.LocalDate>();
-        for (var m : byStaff.values()) allDates.addAll(m.keySet());
-
-        // Per-nurse daily hours rule: <= 8h per day
-        for (String nid : nurseIds) {
-            var daily = byStaff.getOrDefault(nid, Map.of());
-            for (var e : daily.entrySet()) {
-                var date = e.getKey();
-                var list = e.getValue();
-                long totalHours = list.stream().mapToLong(Shift::hours).sum();
-                if (totalHours > 8)
-                    throw new ComplianceException("Nurse " + nid + " exceeds 8h on " + date);
-            }
-        }
-
-        for (var date : allDates) {
-            boolean has08to16 = false;
-            boolean has14to22 = false;
-
-            // Search across all nurses on this date
-            for (String nid : nurseIds) {
-                var list = byStaff.getOrDefault(nid, Map.of()).getOrDefault(date, List.of());
-                if (!has08to16) {
-                    has08to16 = list.stream().anyMatch(s ->
-                            s.getStart().toLocalTime().equals(java.time.LocalTime.of(8, 0)) &&
-                                    s.getEnd().toLocalTime().equals(java.time.LocalTime.of(16, 0)));
-                }
-                if (!has14to22) {
-                    has14to22 = list.stream().anyMatch(s ->
-                            s.getStart().toLocalTime().equals(java.time.LocalTime.of(14, 0)) &&
-                                    s.getEnd().toLocalTime().equals(java.time.LocalTime.of(22, 0)));
-                }
-                if (has08to16 && has14to22) break;
-            }
-
-            if (!has08to16 || !has14to22) {
-                throw new ComplianceException("Nurse shift coverage missing on " + date +
-                        " (needs 08-16 and 14-22).");
-            }
-        }
-
-        // Doctor coverage per day: at least 1 hour
-        for (var date : allDates) {
-            long totalDoctorHours = 0;
-            for (String did : doctorIds) {
-                var list = byStaff.getOrDefault(did, Map.of()).getOrDefault(date, List.of());
-                totalDoctorHours += list.stream().mapToLong(Shift::hours).sum();
-                if (totalDoctorHours >= 1) break;
-            }
-            if (totalDoctorHours < 1)
-                throw new ComplianceException("Doctor coverage < 1h on " + date);
-        }
-    }
-
-
-    //  Role & Roster checks for clinical actions
-    private void requireRole(String actorId, carehome.model.Role expected) {
-        var s = staffById.get(actorId);
-        if (s == null || s.getRole() != expected)
-            throw new carehome.exception.UnauthorizedException("Requires role " + expected);
-    }
-
-    private void requireRostered(String actorId, java.time.LocalDateTime at) {
-        boolean ok = shifts.stream().anyMatch(sh ->
-                sh.getStaffId().equals(actorId) &&
-                        !at.isBefore(sh.getStart()) &&
-                        at.isBefore(sh.getEnd()));
-        if (!ok) throw new carehome.exception.NotRosteredException("Actor " + actorId + " not rostered at " + at);
-    }
-
-    public void addPrescription(String doctorId, String bedId, carehome.model.Prescription p, java.time.LocalDateTime when) {
-        requireRole(doctorId, carehome.model.Role.DOCTOR);
-        requireRostered(doctorId, when);
-        // TODO: attach prescription to resident currently in bedId
-        log(doctorId, "ADD PRESCRIPTION to " + bedId + " @ " + when);
-    }
-
-    public void administerMedication(String nurseId, String bedId, carehome.model.Administration admin, java.time.LocalDateTime when) {
-        requireRole(nurseId, carehome.model.Role.NURSE);
-        requireRostered(nurseId, when);
-        // TODO: record administration against resident/prescription
-        log(nurseId, "ADMINISTER " + admin + " to " + bedId + " @ " + when);
-    }
-
-    // =============================
-    // === Getters
-    // =============================
+    //  Getters
     public Map<String, Staff> getStaffById() {
         return Collections.unmodifiableMap(staffById);
     }
@@ -224,5 +276,9 @@ public class CareHome implements Serializable {
 
     public String getManagerId() {
         return managerId;
+    }
+
+    public Map<String, Bed> getBeds() {
+        return Collections.unmodifiableMap(beds);
     }
 }
