@@ -3,24 +3,25 @@ package carehome.model;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public final class Administration implements Serializable {
+public class Administration implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public final String residentId;
+    public final String nurseId;
     public final String prescriptionId;
     public final String medicine;
-    public final String dose;
-    public final LocalDateTime time;
-    public final String staffId;
-    public String notes = "";
+    public final LocalDateTime administeredAt;
+    public final String notes;
 
-    public Administration(String residentId, String prescriptionId, String medicine, String dose,
-                          LocalDateTime time, String staffId){
-        this.residentId=residentId; this.prescriptionId=prescriptionId;
-        this.medicine=medicine; this.dose=dose; this.time=time; this.staffId=staffId;
+    public Administration(String nurseId, String prescriptionId, String medicine, LocalDateTime administeredAt, String notes) {
+        this.nurseId = nurseId;
+        this.prescriptionId = prescriptionId;
+        this.medicine = medicine;
+        this.administeredAt = administeredAt;
+        this.notes = notes;
     }
-    @Override public String toString(){
-        return "Admin[res="+residentId+", pres="+prescriptionId+", "+medicine+" "+dose+
-                ", "+time+", by="+staffId+", notes="+notes+"]";
+
+    @Override
+    public String toString() {
+        return "Administered " + medicine + " by " + nurseId + " @ " + administeredAt;
     }
 }

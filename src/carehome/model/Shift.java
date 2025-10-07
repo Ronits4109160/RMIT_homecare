@@ -1,22 +1,30 @@
 package carehome.model;
 
-
-import carehome.exception.ValidationException;
-
 import java.io.Serializable;
-import java.time.*;
+import java.time.LocalDateTime;
+import java.util.Objects;
 
-public final class Shift implements Serializable {
+public class Shift implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public final LocalDateTime start;
-    public final LocalDateTime end;
+    private final String staffId;
+    private final LocalDateTime start;
+    private final LocalDateTime end;
 
-    public Shift(LocalDateTime start, LocalDateTime end){
-        if(end.isBefore(start)) throw new ValidationException("Shift end before start");
-        this.start=start; this.end=end;
+    public Shift(String staffId, LocalDateTime start, LocalDateTime end) {
+        this.staffId = Objects.requireNonNull(staffId);
+        this.start = Objects.requireNonNull(start);
+        this.end = Objects.requireNonNull(end);
+        if (!end.isAfter(start)) throw new IllegalArgumentException("Shift end must be after start");
     }
-    public boolean covers(LocalDateTime t){ return !t.isBefore(start) && !t.isAfter(end); }
-    public long hours(){ return Duration.between(start,end).toHours(); }
-    public LocalDate weekStart(){ return start.toLocalDate().with(DayOfWeek.MONDAY); }
+
+    public String getStaffId() { return staffId; }
+    public LocalDateTime getStart() { return start; }
+    public LocalDateTime getEnd() { return end; }
+
+    public long hours() { return java.time.Duration.between(start, end).toHours(); }
+
+    public boolean overlaps(Shift other) {
+        return start.isBefore(other.end) && other.start.isBefore(end) && staffId.equals(other.staffId);
+    }
 }

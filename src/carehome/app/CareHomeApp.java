@@ -1,212 +1,308 @@
 package carehome.app;
 
-
-import carehome.exception.CareHomeException;
 import carehome.model.*;
 import carehome.service.CareHome;
+
+import java.nio.file.Path;
 import java.time.LocalDate;
-import carehome.model.Gender;
-import carehome.exception.ValidationException;
-
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.format.DateTimeParseException;
 import java.util.Scanner;
-import carehome.model.Role;
 
+public class CareHomeApp {
 
+    private static final String DATA_FILE = "carehome_data.ser";
 
-public final class CareHomeApp {
-
-    private static CareHome seed(){
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
         CareHome ch = new CareHome();
-        ch.addBed("B101"); ch.addBed("B102"); ch.addBed("B103");
-        ch.staff().put("D1", new Staff("D1","Dr Alice", Role.DOCTOR, "pass"));
-        ch.staff().put("N1", new Staff("N1","Nurse Bob", Role.NURSE, "pass"));
-        ch.staff().put("M1", new Staff("M1", "Manager Mia", Role.MANAGER, "pass"));
 
-        ch.rebuildRoleLists();
+        // Bootstrap manager (needed for first setup)
+        Staff manager = new Staff("M1", "Manager", Role.MANAGER);
+        ch.addOrUpdateStaff("M1", manager, "manager", "pass");
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime start = now.minusHours(1);
-        LocalDateTime end = now.plusHours(5);
-        ch.staff().get("D1").shifts.add(new Shift(start,end));
-        ch.staff().get("N1").shifts.add(new Shift(start,end));
-        return ch;
-    }
-    private static Gender parseGender(String s){
-        String x = s.trim().toUpperCase();
-        if (x.equals("M") || x.equals("MALE"))   return Gender.MALE;
-        if (x.equals("F") || x.equals("FEMALE")) return Gender.FEMALE;
-        throw new ValidationException("Gender must be M/F");
-    }
 
-    private static int parseAge(String s){
-        try {
-            int a = Integer.parseInt(s.trim());
-            if (a < 0 || a > 130) throw new ValidationException("Age out of range (0–130)");
-            return a;
-        } catch (NumberFormatException e){
-            throw new ValidationException("Age must be a number");
+        ch = seed(ch);
+
+        boolean RUN = true;
+        while (RUN) {
+            printMenu();
+            String choice = sc.nextLine().trim();
+
+            try {
+                switch (choice) {
+
+
+                    // 1) Add / Update Staff (Manager)
+
+                    case "1" -> {
+                        System.out.print("Actor (Manager ID): ");
+                        String actorId = sc.nextLine().trim();
+
+                        System.out.print("Staff ID (e.g., D1/N1/M2): ");
+                        String id = sc.nextLine().trim();
+
+                        System.out.print("Name: ");
+                        String name = sc.nextLine().trim();
+
+                        System.out.print("Role (MANAGER/DOCTOR/NURSE): ");
+                        Role role = Role.valueOf(sc.nextLine().trim().toUpperCase());
+
+                        System.out.print("Username: ");
+                        String username = sc.nextLine().trim();
+
+                        System.out.print("Password: ");
+                        String password = sc.nextLine().trim();
+
+                        Staff s = new Staff(id, name, role);
+                        ch.addOrUpdateStaff(actorId, s, username, password);
+                        System.out.println("✅ Staff saved: " + s);
+                    }
+
+
+                    // 2) Allocate Shift (Manager)
+
+                    case "2" -> {
+                        System.out.print("Actor (Manager ID): ");
+                        String actorId = sc.nextLine().trim();
+
+                        System.out.print("Staff ID to allocate: ");
+                        String sid = sc.nextLine().trim();
+
+                        System.out.print("Start (YYYY-MM-DDTHH:MM): ");
+                        LocalDateTime start = LocalDateTime.parse(sc.nextLine().trim());
+
+                        System.out.print("End   (YYYY-MM-DDTHH:MM): ");
+                        LocalDateTime end = LocalDateTime.parse(sc.nextLine().trim());
+
+                        ch.allocateShift(actorId, new Shift(sid, start, end));
+                        System.out.println("✅ Shift allocated");
+                    }
+
+
+                    // 3) Add Resident to Vacant Bed (Manager)
+
+                    case "3" -> {
+                        System.out.print("Manager ID: ");
+                        String mid = sc.nextLine().trim();
+
+                        System.out.print("Resident ID: ");
+                        String rid = sc.nextLine().trim();
+                        System.out.print("Name: ");
+                        String name = sc.nextLine().trim();
+                        System.out.print("Gender (M/F): ");
+                        String g = sc.nextLine().trim().toUpperCase();
+                        Gender gender = Gender.valueOf(g);
+                        System.out.print("Age: ");
+                        int age = Integer.parseInt(sc.nextLine().trim());
+                        System.out.print("Assign Bed ID: ");
+                        String bedId = sc.nextLine().trim();
+
+                        Resident r = new Resident(rid, name, gender, age);
+                        ch.addResidentToBed(mid, bedId, r);
+                        System.out.println("✅ Resident " + name + " added to bed " + bedId);
+                    }
+
+
+                    // 4) Check Resident in Bed
+
+                    case "4" -> {
+                        System.out.print("Actor ID (Doctor/Nurse): ");
+                        String actorId = sc.nextLine().trim();
+                        System.out.print("Bed ID: ");
+                        String bedId = sc.nextLine().trim();
+
+                        Resident r = ch.getResidentInBed(actorId, bedId);
+                        System.out.println(" Resident in Bed " + bedId + ": " + r);
+                    }
+
+
+                    // 5) Doctor: Attach Prescription
+                    case "5" -> {
+                        System.out.print("Doctor ID: ");
+                        String did = sc.nextLine().trim();
+                        System.out.print("Bed ID: ");
+                        String bedId = sc.nextLine().trim();
+
+                        // Get resident in that bed so we can set residentId on the prescription
+                        Resident r = ch.getResidentInBed(did, bedId);
+
+                        System.out.print("Prescription ID: ");
+                        String pid = sc.nextLine().trim();
+
+                        // One medication for now
+                        System.out.print("Medicine name: ");
+                        String med = sc.nextLine().trim();
+                        System.out.print("Dosage (e.g., 1 tablet): ");
+                        String dose = sc.nextLine().trim();
+                        System.out.print("Frequency (e.g., daily): ");
+                        String freq = sc.nextLine().trim();
+
+                        MedicationDose md = new MedicationDose(med, dose, freq);
+                        java.util.List<MedicationDose> meds = java.util.List.of(md);
+
+
+                        Prescription p = new Prescription(
+                                pid,
+                                did,
+                                r.id,
+                                java.time.LocalDateTime.now(),
+                                meds
+                        );
+
+                        ch.addPrescription(did, bedId, p, java.time.LocalDateTime.now());
+                        System.out.println("✅ Prescription added for bed " + bedId);
+                    }
+
+
+
+                    // 6) Nurse: Move Resident
+
+                    case "6" -> {
+                        System.out.print("Nurse ID: ");
+                        String nid = sc.nextLine().trim();
+                        System.out.print("From Bed ID: ");
+                        String from = sc.nextLine().trim();
+                        System.out.print("To Bed ID: ");
+                        String to = sc.nextLine().trim();
+
+                        ch.moveResident(nid, from, to, LocalDateTime.now());
+                        System.out.println("✅ Resident moved from " + from + " to " + to);
+                    }
+
+
+                    // 7) Nurse: Administer Prescription
+
+                    case "7" -> {
+                        System.out.print("Nurse ID: ");
+                        String nid = sc.nextLine().trim();
+                        System.out.print("Bed ID: ");
+                        String bedId = sc.nextLine().trim();
+                        System.out.print("Prescription ID to administer: ");
+                        String prescId = sc.nextLine().trim();
+
+                        System.out.print("Medicine name: ");
+                        String med = sc.nextLine().trim();
+                        System.out.print("Dose given: ");
+                        String dose = sc.nextLine().trim();
+
+
+                        String notes = "dose=" + dose;
+
+                        Administration admin = new Administration(
+                                nid,
+                                prescId,
+                                med,
+                                java.time.LocalDateTime.now(),
+                                notes
+                        );
+
+                        ch.administerMedication(nid, bedId, admin, java.time.LocalDateTime.now());
+                        System.out.println("✅ Administered " + med + " to " + bedId);
+                    }
+
+
+
+                    // 8) Show Logs
+
+                    case "8" -> {
+                        System.out.println("=== ACTION LOGS ===");
+                        ch.getLogs().forEach(System.out::println);
+                    }
+
+
+                    // 9) Check Compliance
+
+                    case "9" -> {
+                        ch.checkCompliance();
+                        System.out.println("✅ Compliance OK");
+                    }
+
+
+                    // 10) List Staff
+
+                    case "10" -> {
+                        System.out.println("=== STAFF ===");
+                        ch.getStaffById().values().forEach(System.out::println);
+                    }
+
+
+                    // 11) List Shifts
+
+                    case "11" -> {
+                        System.out.println("=== SHIFTS ===");
+                        ch.getShifts().forEach(s ->
+                                System.out.println(s.getStaffId() + "  " + s.getStart() + " -> " + s.getEnd()));
+                    }
+
+
+                    // 12) Save
+
+                    case "12" -> {
+                        ch.saveToFile(Path.of(DATA_FILE));
+                        System.out.println("💾 Saved to " + DATA_FILE);
+                    }
+
+
+                    // 13) Load
+
+                    case "13" -> {
+                        ch = CareHome.loadFromFile(Path.of(DATA_FILE));
+                        System.out.println("📂 Loaded from " + DATA_FILE);
+                    }
+
+
+                    // 0) Quit
+
+                    case "0" -> RUN = false;
+
+                    default -> System.out.println(" Invalid choice.");
+                }
+
+            } catch (IllegalArgumentException e) {
+                System.out.println(" Input error: " + e.getMessage());
+            } catch (DateTimeParseException e) {
+                System.out.println(" Bad date/time format. Use YYYY-MM-DDTHH:MM (e.g., 2025-10-06T08:00)");
+            } catch (Exception e) {
+                System.out.println(" " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            }
         }
+
+        sc.close();
+        System.out.println(" Bye!");
     }
 
-    private static Role parseRole(String s){
-        String x = s.trim().toUpperCase();
-        switch (x) {
-            case "DOCTOR":  return Role.DOCTOR;
-            case "NURSE":   return Role.NURSE;
-            case "MANAGER": return Role.MANAGER;
-            default: throw new ValidationException("Role must be DOCTOR, NURSE or MANAGER");
-        }
-    }
-
-//    private static String resolveActorId(CareHome ch, String input, LocalDateTime atTime){
-//        String v = input.trim();
-//        if (v.equalsIgnoreCase("manager")) return ch.pickManager();
-//        if (v.equalsIgnoreCase("doctor"))  return ch.pickRostered(Role.DOCTOR, atTime);
-//        if (v.equalsIgnoreCase("nurse"))   return ch.pickRostered(Role.NURSE,  atTime);
-//        return v; // treat as explicit ID (e.g., D1, N2, M1)
-//    }
-
-
-    private static void printMenu(){
-        System.out.println("\n== CareHome Demo ==");
-        System.out.println("1) Add/Update Staff");
-        System.out.println("2) Allocate/Modify Shift");
-        System.out.println("3) Add Resident to Vacant Bed");
-        System.out.println("4) Check Resident in Bed (medical staff)");
-        System.out.println("5) Doctor: Attach Prescription to Bed");
+    private static void printMenu() {
+        System.out.println();
+        System.out.println("== CareHome Console ==");
+        System.out.println("1) Add/Update Staff (Manager)");
+        System.out.println("2) Allocate Shift (Manager)");
+        System.out.println("3) Add Resident to Vacant Bed (Manager)");
+        System.out.println("4) Check Resident in Bed (Doctor/Nurse)");
+        System.out.println("5) Doctor: Attach Prescription");
         System.out.println("6) Nurse: Move Resident");
-        System.out.println("7) Administer Prescription (Nurse)");
+        System.out.println("7) Nurse: Administer Prescription");
         System.out.println("8) Show Logs");
-        System.out.println("9) Quit");
-        System.out.println("10) Check Compliance (enter week start)");
-        System.out.println("11) Save State");
-        System.out.println("12) Load State");
+        System.out.println("9) Check Compliance");
+        System.out.println("10) List Staff");
+        System.out.println("11) List Shifts");
+        System.out.println("12) Save");
+        System.out.println("13) Load");
+        System.out.println("0) Quit");
         System.out.print("Choose: ");
     }
 
-    public static void main(String[] args){
-        CareHome ch = seed();
-        Scanner sc = new Scanner(System.in);
-        boolean run = true;
-        while(run){
-            try{
-                printMenu();
-                String choice = sc.nextLine().trim();
-                switch (choice) {
-                    case "1": {
-                        System.out.print("Actor (must be rostered): "); String actor = sc.nextLine().trim();
-                        System.out.print("Staff ID: "); String id=sc.nextLine();
-                        System.out.print("Name: "); String name=sc.nextLine();
-                        System.out.print("Role (DOCTOR/NURSE): "); Role r = parseRole(sc.nextLine());
-                        System.out.print("Password: "); String pw=sc.nextLine();
-                        ch.addOrUpdateStaff(actor,id,name,r,pw);
-                        System.out.println("OK");
-                        break;
-                    }
-                    case "2": {
-                        System.out.print("Actor: "); String actor=sc.nextLine();
-                        System.out.print("Staff ID to roster: "); String sid=sc.nextLine();
-                        System.out.print("Start (YYYY-MM-DDTHH:MM): ");
-                        LocalDateTime s=LocalDateTime.parse(sc.nextLine()+":00");
-                        System.out.print("End (YYYY-MM-DDTHH:MM): ");
-                        LocalDateTime e=LocalDateTime.parse(sc.nextLine()+":00");
-                        ch.allocateOrModifyShift(actor,sid,s,e);
-                        System.out.println("OK");
-                        break;
-                    }
-                    case "3": {
-                        System.out.print("Actor: "); String actor=sc.nextLine();
-                        System.out.print("Resident ID: "); String rid=sc.nextLine();
-                        System.out.print("Resident Name: "); String rn=sc.nextLine();
-                        System.out.print("Gender (M/F): "); Gender g = parseGender(sc.nextLine());
-                        System.out.print("Age (years): "); int age = parseAge(sc.nextLine());
-                        System.out.print("Bed ID: "); String bid=sc.nextLine();
+    /** Demo data for quick testing **/
+    private static CareHome seed(CareHome ch) {
+        ch.addOrUpdateStaff("M1", new Staff("D1", "Dr Alice", Role.DOCTOR), "alice", "pass");
+        ch.addOrUpdateStaff("M1", new Staff("N1", "Nurse Bob", Role.NURSE), "bob", "pass");
+        ch.addOrUpdateStaff("M1", new Staff("N2", "Nurse Eva", Role.NURSE), "eva", "pass");
 
-                        ch.addResidentToVacantBed(actor, rid, rn, g, age, bid);
-                        System.out.println("OK");
-                        break;
-                    }
-                    case "4": {
-                        System.out.print("Actor (doctor/nurse): "); String actor=sc.nextLine();
-                        System.out.print("Bed ID: "); String bid=sc.nextLine();
-                        Resident r = ch.checkResidentInBed(actor,bid);
-                        System.out.println("Resident: "+r);
-                        break;
-                    }
-                    case "5": {
-                        System.out.print("Doctor ID: "); String did=sc.nextLine();
-                        System.out.print("Bed ID: "); String bid=sc.nextLine();
-                        List<MedicationDose> doses = new ArrayList<>();
-                        while(true){
-                            System.out.print("Add dose? (y/n): "); String yn=sc.nextLine();
-                            if(!yn.equalsIgnoreCase("y")) break;
-                            System.out.print("Medicine: "); String med=sc.nextLine();
-                            System.out.print("Dose like 500mg: "); String dose=sc.nextLine();
-                            System.out.print("Time like 09:00: ");
-                            LocalTime t=LocalTime.parse(sc.nextLine()+":00");
-                            doses.add(new MedicationDose(med,dose,t));
-                        }
-                        Prescription p = ch.doctorAttachPrescription(did,bid,doses);
-                        System.out.println("Created: "+p);
-                        break;
-                    }
-                    case "6": {
-                        System.out.print("Nurse ID: "); String nid=sc.nextLine();
-                        System.out.print("From Bed: "); String fb=sc.nextLine();
-                        System.out.print("To Bed: "); String tb=sc.nextLine();
-                        ch.nurseMoveResident(nid,fb,tb);
-                        System.out.println("OK");
-                        break;
-                    }
-                    case "7": {
-                        System.out.print("Nurse ID: "); String nid=sc.nextLine();
-                        System.out.print("Prescription ID: "); String pid=sc.nextLine();
-                        System.out.print("Medicine: "); String med=sc.nextLine();
-                        System.out.print("Dose: "); String dose=sc.nextLine();
-                        System.out.print("Time (YYYY-MM-DDTHH:MM): ");
-                        LocalDateTime t=LocalDateTime.parse(sc.nextLine()+":00");
-                        Administration admin = ch.administerPrescription(nid,pid,med,dose,t);
-                        System.out.println("Recorded: "+admin);
-                        System.out.print("Add/Update notes (blank to skip): "); String notes=sc.nextLine();
-                        if(!notes.isBlank()){ ch.updateAdministrationNotes(nid, admin, notes); System.out.println("Notes updated."); }
-                        break;
-                    }
-                    case "8": {
-                        ch.getLogs().forEach(System.out::println);
-                        break;
-                    }
-                    case "9": run=false; break;
-                    case "10": {
-                        System.out.print("Week start (YYYY-MM-DD, Monday): ");
-                        LocalDate ws = LocalDate.parse(sc.nextLine().trim());
-                        ch.checkCompliance(ws);
-                        System.out.println("Compliance OK for week starting "+ws);
-                        break;
-                    }
-                    case "11": {
-                        System.out.print("File save  ");
-//                        String path = sc.nextLine().trim();
-                        ch.saveToFile("Data.txt");
-                        System.out.println("Saved");
-                        break;
-                    }
-                    case "12": {
-                        ch = CareHome.loadFromFile("Data.txt");
-                        System.out.println("Data Loaded ");
-                        break;
-                    }
-                    default: System.out.println("Invalid.");
-                }
-            } catch (CareHomeException ex){
-                System.out.println("ERROR: "+ex.getMessage());
-            } catch (Exception ex){
-                System.out.println("UNEXPECTED: "+ex);
-            }
-        }
-        System.out.println("Bye.");
+        LocalDate today = LocalDate.now();
+        ch.allocateShift("M1", new Shift("D1", today.atTime(12, 0), today.atTime(13, 0)));
+        ch.allocateShift("M1", new Shift("N1", today.atTime(8, 0), today.atTime(16, 0)));
+        ch.allocateShift("M1", new Shift("N2", today.atTime(14, 0), today.atTime(22, 0)));
+
+        return ch;
     }
 }

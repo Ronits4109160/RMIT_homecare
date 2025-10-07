@@ -1,21 +1,28 @@
 package carehome.model;
 
-
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.List;
 
-public final class Prescription implements Serializable {
+public class Prescription implements Serializable {
     private static final long serialVersionUID = 1L;
 
     public final String id;
-    public final String residentId;
     public final String doctorId;
-    public final List<MedicationDose> schedule = new ArrayList<>();
-    public final List<Administration> administrations = new ArrayList<>();
+    public final String residentId;
+    public final LocalDateTime dateTime;
+    public final List<MedicationDose> meds;
 
-    public Prescription(String id, String residentId, String doctorId){
-        this.id=id; this.residentId=residentId; this.doctorId=doctorId;
+    public Prescription(String id, String doctorId, String residentId, LocalDateTime dateTime, List<MedicationDose> meds) {
+        this.id = id;
+        this.doctorId = doctorId;
+        this.residentId = residentId;
+        this.dateTime = dateTime;
+        this.meds = meds;
     }
-    @Override public String toString(){ return id+" for "+residentId+" by "+doctorId+" doses="+schedule; }
+
+    @Override
+    public String toString() {
+        return "Prescription " + id + " by " + doctorId + " for " + residentId + " (" + meds.size() + " meds)";
+    }
 }
