@@ -3,6 +3,7 @@ package carehome.model;
 import java.io.Serializable;
 import java.util.Objects;
 
+
 public class Staff implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -10,7 +11,7 @@ public class Staff implements Serializable {
     private String name;
     private Role role;
 
-    // Simple assignment requirement: manager sets these
+    // Credentials (set by manager)
     private String username;
     private String password; // plain for assignment scope
 
@@ -20,7 +21,7 @@ public class Staff implements Serializable {
         this.role = Objects.requireNonNull(role);
     }
 
-    // ---- encapsulation
+    // Encapsulation
     public String getId() { return id; }
     public String getName() { return name; }
     public Role getRole() { return role; }
@@ -30,13 +31,26 @@ public class Staff implements Serializable {
     public void setName(String name) { this.name = Objects.requireNonNull(name); }
     public void setRole(Role role) { this.role = Objects.requireNonNull(role); }
 
-    // Manager-only operations (enforced in service)
+    // Manager-only operation
     public void setCredentials(String username, String password) {
         this.username = Objects.requireNonNull(username);
         this.password = Objects.requireNonNull(password);
     }
 
-    @Override public String toString() {
+
+    public boolean checkPassword(String rawPassword) {
+        return Objects.equals(this.password, rawPassword);
+    }
+
+
+//      Returns true if this staff member has manager privileges.
+
+    public boolean isManager() {
+        return this.role == Role.MANAGER;
+    }
+
+    @Override
+    public String toString() {
         return role + "(" + id + ") " + name;
     }
 }

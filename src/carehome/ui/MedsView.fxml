@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="carehome.ui.controller.MedsController">
+
+    <top>
+        <HBox spacing="12" style="-fx-padding:10; -fx-background-color:#ecf0f1;">
+            <Label text="Prescriptions &amp; Administration"
+                   style="-fx-font-size:18; -fx-font-weight:bold; -fx-text-fill:#2c3e50;"/>
+            <Pane HBox.hgrow="ALWAYS"/>
+            <Label fx:id="lblUser" style="-fx-text-fill:#34495e;"/>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox spacing="12" style="-fx-padding:12;">
+            <!-- Bed / Resident header -->
+            <HBox spacing="8" alignment="CENTER_LEFT">
+                <Label text="Bed ID:"/>
+                <TextField fx:id="txtBedId" promptText="e.g., W1-R3-B2" prefColumnCount="14"/>
+                <Button text="Load" onAction="#handleLoadBed"/>
+                <Label text="Resident:" style="-fx-font-weight:bold;"/>
+                <Label fx:id="lblResident" />
+                <Label text="Gender:" style="-fx-padding:0 0 0 16;"/>
+                <Label fx:id="lblGender"/>
+                <Label text="Age:" style="-fx-padding:0 0 0 16;"/>
+                <Label fx:id="lblAge"/>
+            </HBox>
+
+            <SplitPane dividerPositions="0.55">
+                <!-- Prescriptions -->
+                <VBox spacing="8">
+                    <Label text="Prescriptions"/>
+                    <TableView fx:id="tblPrescriptions" prefHeight="240">
+                        <columns>
+                            <TableColumn fx:id="colPId" text="ID" prefWidth="110"/>
+                            <TableColumn fx:id="colPCreated" text="Created" prefWidth="140"/>
+                            <TableColumn fx:id="colPDoctor" text="Doctor" prefWidth="110"/>
+                            <TableColumn fx:id="colPMeds" text="Medications" prefWidth="320"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+
+                <!-- Administrations -->
+                <VBox spacing="8">
+                    <Label text="Administrations"/>
+                    <TableView fx:id="tblAdmins" prefHeight="240">
+                        <columns>
+                            <TableColumn fx:id="colATime" text="Time" prefWidth="160"/>
+                            <TableColumn fx:id="colANurse" text="Nurse" prefWidth="120"/>
+                            <TableColumn fx:id="colAPresc" text="Prescription" prefWidth="120"/>
+                            <TableColumn fx:id="colAMed" text="Medicine" prefWidth="160"/>
+                            <TableColumn fx:id="colANotes" text="Notes" prefWidth="240"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </SplitPane>
+
+            <!-- Actions -->
+            <HBox spacing="16">
+                <TitledPane text="Doctor Actions" expanded="true">
+                    <content>
+                        <GridPane hgap="8" vgap="6" style="-fx-padding:8;">
+                            <columnConstraints>
+                                <ColumnConstraints minWidth="100"/>
+                                <ColumnConstraints hgrow="ALWAYS"/>
+                            </columnConstraints>
+
+                            <Label text="Prescription ID:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                            <TextField fx:id="txtPrescId" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+                            <Label text="Medicine:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                            <TextField fx:id="txtMedName" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+                            <Label text="Dose:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                            <TextField fx:id="txtDose" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+                            <Label text="Frequency:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                            <TextField fx:id="txtFreq" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+                            <Button fx:id="btnAddPresc" text="Add Prescription" GridPane.rowIndex="4" GridPane.columnIndex="1"
+                                    onAction="#handleAddPrescription"/>
+                        </GridPane>
+                    </content>
+                </TitledPane>
+
+                <TitledPane text="Nurse Actions" expanded="true">
+                    <content>
+                        <GridPane hgap="8" vgap="6" style="-fx-padding:8;">
+                            <columnConstraints>
+                                <ColumnConstraints minWidth="100"/>
+                                <ColumnConstraints hgrow="ALWAYS"/>
+                            </columnConstraints>
+
+                            <Label text="Prescription:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                            <TextField fx:id="txtAdminPrescId" promptText="Select above or enter ID"
+                                       GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+                            <Label text="Medicine:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                            <TextField fx:id="txtAdminMed" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+                            <Label text="Dose:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                            <TextField fx:id="txtAdminDose" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+                            <Label text="Notes:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                            <TextField fx:id="txtAdminNotes" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+                            <Button fx:id="btnAdminister" text="Administer" GridPane.rowIndex="4" GridPane.columnIndex="1"
+                                    onAction="#handleAdminister"/>
+                        </GridPane>
+                    </content>
+                </TitledPane>
+            </HBox>
+
+            <Label fx:id="lblInfo" style="-fx-text-fill:#2c3e50;"/>
+        </VBox>
+    </center>
+</BorderPane>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="carehome.ui.controller.StaffController"
+      spacing="12">
+    <padding>
+        <Insets topRightBottomLeft="20"/>
+    </padding>
+
+    <Label text="Staff Management"
+           style="-fx-font-size: 18; -fx-font-weight: bold;" />
+
+    <!-- Table -->
+    <TableView fx:id="staffTable" prefHeight="260">
+        <columns>
+            <TableColumn fx:id="colId" text="ID" prefWidth="80" />
+            <TableColumn fx:id="colName" text="Name" prefWidth="180" />
+            <TableColumn fx:id="colRole" text="Role" prefWidth="120" />
+            <TableColumn fx:id="colUsername" text="Username" prefWidth="160" />
+        </columns>
+    </TableView>
+
+    <!-- Form -->
+    <TitledPane text="Add / Update Staff" expanded="true">
+        <content>
+            <GridPane hgap="10" vgap="10">
+                <padding>
+                    <Insets topRightBottomLeft="10"/>
+                </padding>
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="25"/>
+                    <ColumnConstraints percentWidth="75"/>
+                </columnConstraints>
+
+                <Label text="ID:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <TextField fx:id="txtId" promptText="e.g., M1 / D1 / N1"
+                           GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+                <Label text="Name:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                <TextField fx:id="txtName" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+                <Label text="Role:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                <ChoiceBox fx:id="choiceRole" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+                <Label text="Username:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                <TextField fx:id="txtUsername" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+                <Label text="Password:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                <PasswordField fx:id="txtPassword" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+
+                <HBox spacing="10" GridPane.rowIndex="5" GridPane.columnIndex="1">
+                    <Button fx:id="btnSave" text="Save"
+                            style="-fx-background-color:#27ae60; -fx-text-fill:white; -fx-font-weight:bold;"/>
+                    <Button fx:id="btnClear" text="Clear"/>
+                </HBox>
+            </GridPane>
+        </content>
+    </TitledPane>
+
+    <Label fx:id="lblInfo" textFill="#2c3e50" />
+</VBox>
