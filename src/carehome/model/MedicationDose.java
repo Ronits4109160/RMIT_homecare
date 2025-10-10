@@ -6,8 +6,8 @@ public class MedicationDose implements Serializable {
     private static final long serialVersionUID = 1L;
 
     public String medicine;
-    public String dosage;   // e.g. "5mg", "1 tablet"
-    public String frequency; // e.g. "Twice a day"
+    public String dosage;
+    public String frequency;
 
     public MedicationDose(String medicine, String dosage, String frequency) {
         this.medicine = medicine;

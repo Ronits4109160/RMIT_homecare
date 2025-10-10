@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="carehome.ui.controller.ShiftController"
+      spacing="12">
+    <padding>
+        <Insets topRightBottomLeft="20"/>
+    </padding>
+
+    <Label text="Shift Allocation (Manager)"
+           style="-fx-font-size: 18; -fx-font-weight: bold;"/>
+
+    <!-- Allocation form -->
+    <TitledPane text="Add Shift" expanded="true">
+        <content>
+            <GridPane hgap="10" vgap="10">
+                <padding><Insets topRightBottomLeft="10"/></padding>
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="25"/>
+                    <ColumnConstraints percentWidth="75"/>
+                </columnConstraints>
+
+                <Label text="Staff ID:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <ComboBox fx:id="cmbStaffId" promptText="Select staff"
+                          GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+                <Label text="Start Date:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                <DatePicker fx:id="dpStartDate" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+                <Label text="Start Time (HH:MM):" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                <TextField fx:id="txtStartTime" promptText="08:00"
+                           GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+                <Label text="End Date:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                <DatePicker fx:id="dpEndDate" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+                <Label text="End Time (HH:MM):" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                <TextField fx:id="txtEndTime" promptText="16:00"
+                           GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+
+                <HBox spacing="10" GridPane.rowIndex="5" GridPane.columnIndex="1">
+                    <Button fx:id="btnAdd" text="Allocate Shift"
+                            onAction="#handleAddShift"
+                            style="-fx-background-color:#27ae60; -fx-text-fill:white; -fx-font-weight:bold;"/>
+                    <Button fx:id="btnClear" text="Clear" onAction="#handleClear"/>
+                </HBox>
+            </GridPane>
+        </content>
+    </TitledPane>
+
+    <!-- Shift table -->
+    <TitledPane text="All Shifts" expanded="true">
+        <content>
+            <TableView fx:id="tblShifts" prefHeight="260">
+                <columns>
+                    <TableColumn fx:id="colStaffId" text="Staff ID" prefWidth="120"/>
+                    <TableColumn fx:id="colStart"   text="Start"    prefWidth="220"/>
+                    <TableColumn fx:id="colEnd"     text="End"      prefWidth="220"/>
+                </columns>
+            </TableView>
+        </content>
+    </TitledPane>
+
+    <Label fx:id="lblInfo" textFill="#2c3e50"/>
+</VBox>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="carehome.ui.controller.BedsController">
+
+    <top>
+        <HBox spacing="10" style="-fx-padding: 8; -fx-background-color: #ecf0f1;">
+            <Label text="Beds &amp; Residents"
+                   style="-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill:#2c3e50;"/>
+        </HBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToWidth="true" fitToHeight="true">
+            <VBox spacing="12" style="-fx-padding: 12;">
+                <TitledPane text="Ward 1" expanded="true">
+                    <content>
+                        <FlowPane fx:id="ward1Pane" hgap="8" vgap="8" prefWrapLength="600" />
+                    </content>
+                </TitledPane>
+
+                <TitledPane text="Ward 2" expanded="true">
+                    <content>
+                        <FlowPane fx:id="ward2Pane" hgap="8" vgap="8" prefWrapLength="600" />
+                    </content>
+                </TitledPane>
+            </VBox>
+        </ScrollPane>
+    </center>
+
+    <right>
+        <VBox spacing="10" style="-fx-padding: 16; -fx-background-color: #f8f9fa;" prefWidth="340">
+            <Label text="Bed Details" style="-fx-font-size: 16; -fx-font-weight: bold;"/>
+            <GridPane hgap="8" vgap="6">
+                <padding><Insets topRightBottomLeft="6"/></padding>
+                <columnConstraints>
+                    <ColumnConstraints minWidth="90"/>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                </columnConstraints>
+
+                <Label text="Bed:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <Label fx:id="lblBedId" style="-fx-font-weight: bold;" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+                <Label text="Status:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                <Label fx:id="lblStatus" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+                <Label text="Resident:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                <Label fx:id="lblResident" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+                <Label text="Gender:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                <Label fx:id="lblGender" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+                <Label text="Age:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                <Label fx:id="lblAge" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+            </GridPane>
+
+            <Separator/>
+
+            <TitledPane text="Actions" expanded="true">
+                <content>
+                    <VBox spacing="8">
+                        <Button fx:id="btnAddResident" text="Add Resident (Manager)" onAction="#handleAddResident"/>
+                        <HBox spacing="8">
+                            <Button fx:id="btnMoveResident" text="Move (Nurse/Doctor)" onAction="#handleMoveResident"/>
+                            <TextField fx:id="txtTargetBed" promptText="Target Bed ID"/>
+                        </HBox>
+                        <Button fx:id="btnDischarge" text="Discharge (Nurse/Doctor)" onAction="#handleDischarge"/>
+                    </VBox>
+                </content>
+            </TitledPane>
+
+            <Label fx:id="lblInfo" textFill="#2c3e50"/>
+        </VBox>
+    </right>
+</BorderPane>

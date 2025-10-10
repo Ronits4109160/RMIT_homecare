@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="carehome.ui.controller.LoginController"
+            prefWidth="520" prefHeight="300" style="-fx-background-color:#ecf0f1;">
+    <center>
+        <VBox spacing="12" alignment="CENTER" style="-fx-padding: 32;">
+            <Label text="RMIT Care Home — Login"
+                   style="-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill:#2c3e50;" />
+            <GridPane hgap="10" vgap="10">
+                <Label text="Staff ID:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <TextField fx:id="txtId" promptText="e.g., M1 / D1 / N1" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+                <Label text="Password:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                <PasswordField fx:id="txtPassword" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+            </GridPane>
+
+            <Button text="Login" fx:id="btnLogin"
+                    style="-fx-background-color:#2ecc71; -fx-text-fill:white; -fx-font-weight:bold;"/>
+
+            <Label fx:id="lblError" textFill="red"/>
+        </VBox>
+    </center>
+</BorderPane>
