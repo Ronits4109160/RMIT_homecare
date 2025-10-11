@@ -12,6 +12,7 @@ public class Prescription implements Serializable {
     public final String residentId;
     public final LocalDateTime dateTime;
     public final List<MedicationDose> meds;
+    public ActionLog timeCreated;
 
     public Prescription(String id, String doctorId, String residentId, LocalDateTime dateTime, List<MedicationDose> meds) {
         this.id = id;

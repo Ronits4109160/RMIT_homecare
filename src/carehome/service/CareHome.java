@@ -28,6 +28,7 @@ public class CareHome implements Serializable {
 
     //  archived stays
     private final List<ArchivedStay> archives = new ArrayList<>();
+    private CareHome careHome;
 
     //  Manager-only helpers
     public boolean isManager(String staffId) {
@@ -398,6 +399,31 @@ public class CareHome implements Serializable {
         }
     }
 
+//    JDBC Integration
+public void rawPutStaff(Staff s) {
+        staffById.put(s.getId(), s);
+        switch (s.getRole()) {
+            case DOCTOR -> { if (!doctorIds.contains(s.getId())) doctorIds.add(s.getId()); }
+            case NURSE  -> { if (!nurseIds.contains(s.getId()))  nurseIds.add(s.getId()); }
+            case MANAGER -> managerId = s.getId();
+        }
+    }
+    public void rawSetCredentials(String staffId, String username, String password) {
+        Staff s = staffById.get(staffId);
+        if (s != null) s.setCredentials(username, password);
+    }
+    public void rawSetResidentInBed(String bedId, Resident r) {
+        Bed b = beds.computeIfAbsent(bedId, Bed::new);
+        b.occupant = r;
+    }
+    public void rawAddPrescription(String residentId, Prescription p) {
+        prescriptionsByResident.computeIfAbsent(residentId, k -> new ArrayList<>()).add(p);
+    }
+    public void rawAddAdministration(Administration a) { administrations.add(a); }
+    public void rawAddShift(Shift s) { shifts.add(s); }
+    public void rawAddArchive(ArchivedStay a) { archives.add(a); }
+    public void rawAddLog(ActionLog l) { logs.add(l); }
+
 
     // Logging
     private void log(String staffId, String action) {
@@ -409,25 +435,26 @@ public class CareHome implements Serializable {
         return Collections.unmodifiableList(logs);
     }
 
-    //  Serialization
-    public void saveToFile(Path file) {
-        try (ObjectOutputStream out = new ObjectOutputStream(Files.newOutputStream(file))) {
-            out.writeObject(this);
-            log(managerId != null ? managerId : "SYSTEM", "Saved data to file " + file);
-        } catch (IOException e) {
-            throw new ComplianceException("Save failed: " + e.getMessage());
-        }
-    }
 
-    public static CareHome loadFromFile(Path file) {
-        try (ObjectInputStream in = new ObjectInputStream(Files.newInputStream(file))) {
-            CareHome ch = (CareHome) in.readObject();
-            System.out.println("Loaded CareHome data from " + file);
-            return ch;
-        } catch (Exception e) {
-            throw new ComplianceException("Load failed: " + e.getMessage());
-        }
-    }
+//    //  Serialization
+//    public void saveToFile(Path file) {
+//        try (ObjectOutputStream out = new ObjectOutputStream(Files.newOutputStream(file))) {
+//            out.writeObject(this);
+//            log(managerId != null ? managerId : "SYSTEM", "Saved data to file " + file);
+//        } catch (IOException e) {
+//            throw new ComplianceException("Save failed: " + e.getMessage());
+//        }
+//    }
+//
+//    public static CareHome loadFromFile(Path file) {
+//        try (ObjectInputStream in = new ObjectInputStream(Files.newInputStream(file))) {
+//            CareHome ch = (CareHome) in.readObject();
+//            System.out.println("Loaded CareHome data from " + file);
+//            return ch;
+//        } catch (Exception e) {
+//            throw new ComplianceException("Load failed: " + e.getMessage());
+//        }
+//    }
 
     //  Getters
     public Map<String, Staff> getStaffById() {
