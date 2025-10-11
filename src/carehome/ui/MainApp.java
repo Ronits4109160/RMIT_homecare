@@ -27,7 +27,6 @@ public class MainApp extends Application {
 
         // optional shifts today (so doctor/nurse are rostered)
         var today = LocalDate.now();
-        careHome.allocateShift("M1", new carehome.model.Shift("D1", today.atTime(12,0), today.atTime(13,0)));
         careHome.allocateShift("M1", new carehome.model.Shift("N1", today.atTime(8,0),  today.atTime(16,0)));
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("LoginView.fxml"));

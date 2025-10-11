@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="carehome.ui.controller.LogsController">
+
+    <top>
+        <HBox spacing="12" style="-fx-padding:10; -fx-background-color:#ecf0f1;">
+            <Label text="Logs &amp; Compliance"
+                   style="-fx-font-size:18; -fx-font-weight:bold; -fx-text-fill:#2c3e50;"/>
+            <Pane HBox.hgrow="ALWAYS"/>
+            <Label fx:id="lblUser" style="-fx-text-fill:#34495e;"/>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox spacing="10" style="-fx-padding:12;">
+            <!-- Filters -->
+            <HBox spacing="8" alignment="CENTER_LEFT">
+                <Label text="Search:"/>
+                <TextField fx:id="txtSearch" promptText="staff id or action contains..." prefWidth="260"/>
+
+                <Label text="From:" style="-fx-padding:0 0 0 12;"/>
+                <DatePicker fx:id="dpFrom"/>
+
+                <Label text="To:"/>
+                <DatePicker fx:id="dpTo"/>
+
+                <Button text="Refresh" onAction="#handleRefresh"/>
+                <Pane HBox.hgrow="ALWAYS"/>
+                <Button fx:id="btnCompliance" text="Run Compliance" onAction="#handleCompliance"/>
+            </HBox>
+
+            <!-- Table -->
+            <TableView fx:id="tblLogs" prefHeight="520">
+                <columns>
+                    <TableColumn fx:id="colTime" text="Time" prefWidth="170"/>
+                    <TableColumn fx:id="colStaff" text="Staff" prefWidth="120"/>
+                    <TableColumn fx:id="colRole" text="Role" prefWidth="110"/>
+                    <TableColumn fx:id="colAction" text="Action" prefWidth="640"/>
+                </columns>
+            </TableView>
+
+            <Label fx:id="lblInfo" style="-fx-text-fill:#2c3e50;"/>
+        </VBox>
+    </center>
+</BorderPane>

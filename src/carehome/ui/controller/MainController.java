@@ -141,6 +141,15 @@ public class MainController {
                     }
                     contentArea.getChildren().setAll(root);
                 }
+                case "logs" -> {
+                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/carehome/ui/LogsView.fxml"));
+                    Node root = loader.load();
+                    var c = loader.getController();
+                    if (c instanceof carehome.ui.controller.LogsController lc) {
+                        lc.setContext(careHome, current);
+                    }
+                    contentArea.getChildren().setAll(root);
+                }
                 default -> {
                     Label l = new Label(target + " — (TODO)");
                     l.setStyle("-fx-font-size:20; -fx-font-weight:bold;");
