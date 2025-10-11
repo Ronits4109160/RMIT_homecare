@@ -30,7 +30,7 @@
             <Button text="Staff" fx:id="btnStaff" style="-fx-background-color: #34495e; -fx-text-fill: white;"/>
             <Button text="Shifts" fx:id="btnShifts" style="-fx-background-color: #34495e; -fx-text-fill: white;"/>
             <Button text="Residents" fx:id="btnResidents" style="-fx-background-color: #34495e; -fx-text-fill: white;"/>
-            <Button fx:id="btnMeds" text="Medical" />
+            <Button text="Medical" fx:id="btnMeds" style="-fx-background-color: #34495e; -fx-text-fill: white;"/>
             <Button text="Logs" fx:id="btnLogs" style="-fx-background-color: #34495e; -fx-text-fill: white;"/>
             <Button text="Archive" fx:id="btnArchive" style="-fx-background-color: #34495e; -fx-text-fill: white;"/>
 
