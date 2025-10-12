@@ -3,6 +3,7 @@ package carehome.ui.controller;
 import carehome.model.ActionLog;
 import carehome.model.Role;
 import carehome.model.Staff;
+import carehome.persistence.JdbcStore;
 import carehome.service.CareHome;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -23,29 +24,42 @@ public class LogsController {
     @FXML private Label lblUser, lblInfo;
     @FXML private TextField txtSearch;
     @FXML private DatePicker dpFrom, dpTo;
-    @FXML private Button btnCompliance;
+    @FXML private Button btnCompliance, btnSaveDb, btnLoadDb;
 
     @FXML private TableView<ActionLog> tblLogs;
     @FXML private TableColumn<ActionLog,String> colTime, colStaff, colRole, colAction;
 
     private CareHome careHome;
     private Staff currentUser;
+    private MainController main;      // so we can replace the shared CareHome after DB load
+    private JdbcStore store;          // SQLite JDBC helper
 
     private final ObservableList<ActionLog> data = FXCollections.observableArrayList();
     private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    public void setContext(CareHome ch, Staff user) {
+    /** Preferred: called from MainController with a shared db URL. */
+    public void setContext(CareHome ch, Staff user, MainController main) {
         this.careHome = ch;
         this.currentUser = user;
+        this.main = main;
+
+        // Create/init store (idempotent); change path if you want a custom location
+        this.store = new JdbcStore("jdbc:sqlite:carehome.db");
+        this.store.init();
 
         lblUser.setText(user.getName() + " (" + user.getRole() + ")");
         btnCompliance.setDisable(user.getRole() != Role.MANAGER); // manager-only
         refresh();
     }
 
+    /** Backward-compatible overload (if main not provided). */
+    public void setContext(CareHome ch, Staff user) {
+        setContext(ch, user, null);
+    }
+
     @FXML
     public void initialize() {
-        // Column bindings
+        // Column bindings (tolerant to different ActionLog field names)
         colTime.setCellValueFactory(d -> new SimpleStringProperty(formatDateTime(
                 safeObject(d.getValue(), "time", "timestamp", "when", "at"))));
         colStaff.setCellValueFactory(d -> new SimpleStringProperty(
@@ -58,12 +72,10 @@ public class LogsController {
         tblLogs.setItems(data);
     }
 
-    // Actions
+    // ====== Actions ======
 
     @FXML
-    private void handleRefresh() {
-        refresh();
-    }
+    private void handleRefresh() { refresh(); }
 
     @FXML
     private void handleCompliance() {
@@ -75,7 +87,31 @@ public class LogsController {
         }
     }
 
-    //Data & filtering
+    @FXML
+    private void handleSaveDb() {
+        try {
+            store.saveAll(careHome);
+            info("Saved snapshot to DB.");
+        } catch (Exception ex) {
+            error("Save failed: " + ex.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleLoadDb() {
+        try {
+            CareHome loaded = store.loadAll();
+            // update this controller + MainController’s shared model
+            this.careHome = loaded;
+            if (main != null) main.replaceCareHome(loaded);
+            refresh();
+            info("Loaded snapshot from DB.");
+        } catch (Exception ex) {
+            error("Load failed: " + ex.getMessage());
+        }
+    }
+
+    // ====== Data & filtering ======
 
     private void refresh() {
         data.setAll(careHome.getLogs()); // base list
@@ -84,15 +120,12 @@ public class LogsController {
         LocalDate from = dpFrom.getValue();
         LocalDate to = dpTo.getValue();
 
-        // Apply filters in place
         data.removeIf(log -> {
-            // search text check
             if (!q.isEmpty()) {
                 String staff = safeString(log, "staffId", "actorId", "who").toLowerCase(Locale.ROOT);
                 String action = safeString(log, "action", "message", "what").toLowerCase(Locale.ROOT);
                 if (!staff.contains(q) && !action.contains(q)) return true;
             }
-            // date range check
             LocalDateTime ldt = asDateTime(safeObject(log, "time", "timestamp", "when", "at"));
             if (ldt != null) {
                 if (from != null && ldt.toLocalDate().isBefore(from)) return true;
@@ -104,7 +137,7 @@ public class LogsController {
         info(data.size() + " log(s).");
     }
 
-    //  Helpers
+    // ====== Helpers ======
 
     private String resolveRole(String staffId) {
         if (staffId == null || staffId.isEmpty()) return "";
@@ -114,7 +147,7 @@ public class LogsController {
 
     private LocalDateTime asDateTime(Object o) {
         if (o instanceof LocalDateTime ldt) return ldt;
-        return null; // if ActionLog lacks a datetime, we just skip date filtering for that row
+        return null;
     }
 
     private String formatDateTime(Object o) {
@@ -125,9 +158,11 @@ public class LogsController {
     private void info(String m) { lblInfo.setText(m); }
     private void error(String m) {
         Alert a = new Alert(Alert.AlertType.ERROR, m, ButtonType.OK);
-        a.setHeaderText("Compliance / Logs"); a.showAndWait();
+        a.setHeaderText("Compliance / Logs");
+        a.showAndWait();
     }
 
+    // --- reflection-lite utils ---
     private String safeString(Object obj, String... names) {
         Object val = safeObject(obj, names);
         return val == null ? "" : String.valueOf(val);
@@ -136,7 +171,6 @@ public class LogsController {
     private Object safeObject(Object obj, String... names) {
         if (obj == null) return null;
         Class<?> c = obj.getClass();
-        // fields
         for (String n : names) {
             try {
                 Field f = c.getDeclaredField(n);
@@ -146,7 +180,6 @@ public class LogsController {
             } catch (NoSuchFieldException ignored) { }
             catch (Exception ignored) { }
         }
-        // getters
         for (String n : names) {
             String base = Character.toUpperCase(n.charAt(0)) + n.substring(1);
             for (String p : new String[]{"get", "is"}) {

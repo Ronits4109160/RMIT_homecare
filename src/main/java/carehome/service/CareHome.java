@@ -28,6 +28,7 @@ public class CareHome implements Serializable {
 
     //  archived stays
     private final List<ArchivedStay> archives = new ArrayList<>();
+    private CareHome careHome;
 
     //  Manager-only helpers
     public boolean isManager(String staffId) {
@@ -61,10 +62,23 @@ public class CareHome implements Serializable {
         log(bootstrap ? "SYSTEM" : actorId, "ADD/UPDATE STAFF " + staff);
     }
 
-
-//     Manager adds a new resident to a vacant bed.
+    // Manager adds a new resident to a vacant bed.
     public void addResidentToBed(String managerId, String bedId, Resident r) {
         requireManager(managerId);
+        if (r == null) throw new ValidationException("Resident details required");
+
+        //  Age validation
+        if (r.age < 0 || r.age > 100) {
+            throw new ValidationException("Resident age must be between 0 and 100.");
+        }
+
+        if (r.id == null || r.id.trim().isEmpty()) {
+            r.id = nextResidentId();
+        } else {
+            if (isResidentIdActive(r.id)) {
+                throw new ValidationException("Resident ID already in use: " + r.id);
+            }
+        }
 
         // gender rule - if room already has any occupants, new resident must match
         enforceRoomGender(bedId, r.gender);
@@ -76,6 +90,7 @@ public class CareHome implements Serializable {
         b.occupant = r;
         log(managerId, "ADD RESIDENT " + r + " to bed " + bedId);
     }
+
 
 
     /** Returns the resident occupying a bed (if any). */
@@ -398,6 +413,31 @@ public class CareHome implements Serializable {
         }
     }
 
+//    JDBC Integration
+public void rawPutStaff(Staff s) {
+        staffById.put(s.getId(), s);
+        switch (s.getRole()) {
+            case DOCTOR -> { if (!doctorIds.contains(s.getId())) doctorIds.add(s.getId()); }
+            case NURSE  -> { if (!nurseIds.contains(s.getId()))  nurseIds.add(s.getId()); }
+            case MANAGER -> managerId = s.getId();
+        }
+    }
+    public void rawSetCredentials(String staffId, String username, String password) {
+        Staff s = staffById.get(staffId);
+        if (s != null) s.setCredentials(username, password);
+    }
+    public void rawSetResidentInBed(String bedId, Resident r) {
+        Bed b = beds.computeIfAbsent(bedId, Bed::new);
+        b.occupant = r;
+    }
+    public void rawAddPrescription(String residentId, Prescription p) {
+        prescriptionsByResident.computeIfAbsent(residentId, k -> new ArrayList<>()).add(p);
+    }
+    public void rawAddAdministration(Administration a) { administrations.add(a); }
+    public void rawAddShift(Shift s) { shifts.add(s); }
+    public void rawAddArchive(ArchivedStay a) { archives.add(a); }
+    public void rawAddLog(ActionLog l) { logs.add(l); }
+
 
     // Logging
     private void log(String staffId, String action) {
@@ -409,24 +449,55 @@ public class CareHome implements Serializable {
         return Collections.unmodifiableList(logs);
     }
 
-    //  Serialization
-    public void saveToFile(Path file) {
-        try (ObjectOutputStream out = new ObjectOutputStream(Files.newOutputStream(file))) {
-            out.writeObject(this);
-            log(managerId != null ? managerId : "SYSTEM", "Saved data to file " + file);
-        } catch (IOException e) {
-            throw new ComplianceException("Save failed: " + e.getMessage());
+    private static final java.util.regex.Pattern RID = java.util.regex.Pattern.compile("^R(\\d+)$", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    private int maxResidentNumericId() {
+        int max = 0;
+
+        // Active occupants
+        for (Bed b : beds.values()) {
+            if (b != null && !b.isVacant() && b.occupant != null && b.occupant.id != null) {
+                java.util.regex.Matcher m = RID.matcher(b.occupant.id.trim());
+                if (m.matches()) {
+                    max = Math.max(max, Integer.parseInt(m.group(1)));
+                }
+            }
         }
+
+        // Archived stays
+        for (ArchivedStay s : archives) {
+            // adapt to your archived model fields
+            String rid = null;
+            if (s.residentName != null && s.residentId != null) rid = s.residentId;
+            else if (s.residentId != null) rid = s.residentId;
+
+            if (rid != null) {
+                java.util.regex.Matcher m = RID.matcher(rid.trim());
+                if (m.matches()) {
+                    max = Math.max(max, Integer.parseInt(m.group(1)));
+                }
+            }
+        }
+
+        return max;
     }
 
-    public static CareHome loadFromFile(Path file) {
-        try (ObjectInputStream in = new ObjectInputStream(Files.newInputStream(file))) {
-            CareHome ch = (CareHome) in.readObject();
-            System.out.println("Loaded CareHome data from " + file);
-            return ch;
-        } catch (Exception e) {
-            throw new ComplianceException("Load failed: " + e.getMessage());
+    private String nextResidentId() {
+        return "R" + (maxResidentNumericId() + 1);
+    }
+
+    private boolean isResidentIdActive(String residentId) {
+        if (residentId == null) return false;
+        String probe = residentId.trim();
+        for (Bed b : beds.values()) {
+            if (b != null && !b.isVacant()
+                    && b.occupant != null
+                    && b.occupant.id != null
+                    && b.occupant.id.trim().equalsIgnoreCase(probe)) {
+                return true;
+            }
         }
+        return false;
     }
 
     //  Getters

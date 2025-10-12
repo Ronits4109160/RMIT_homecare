@@ -45,7 +45,6 @@ public class BedsController {
         reloadBeds();
     }
 
-    // ---------- data & rendering ----------
     private void reloadBeds() {
         Map<String,Bed> beds = careHome.getBeds();
         List<String> allIds = new ArrayList<>(beds.keySet());
@@ -108,29 +107,39 @@ public class BedsController {
         if (selectedBedId == null) { err("Select a bed first."); return; }
         if (safeResident(selectedBedId) != null) { err("Bed is occupied."); return; }
 
-        Optional<String> rid = prompt("New Resident ID");
-        if (rid.isEmpty()) { info("Cancelled."); return; }
         Optional<String> name = prompt("Resident Name");
-        if (name.isEmpty()) { info("Cancelled."); return; }
+        if (name.isEmpty() || name.get().trim().isEmpty()) { info("Cancelled."); return; }
 
         ChoiceDialog<String> chGender = new ChoiceDialog<>("MALE", List.of("MALE","FEMALE"));
         chGender.setHeaderText("Gender");
         Optional<String> g = chGender.showAndWait();
         if (g.isEmpty()) { info("Cancelled."); return; }
 
-        Optional<String> ageS = prompt("Age");
+        Optional<String> ageS = prompt("Age (0–100)");
         if (ageS.isEmpty()) { info("Cancelled."); return; }
 
         try {
             int age = Integer.parseInt(ageS.get().trim());
+            if (age < 0 || age > 100) {
+                err("Age must be between 0 and 100.");
+                return;
+            }
+
             Gender gender = Gender.valueOf(g.get().trim().toUpperCase());
-            Resident r = new Resident(rid.get().trim(), name.get().trim(), gender, age);
+
+            // Pass null ID so CareHome auto-generates R{N+1}
+            Resident r = new Resident(null, name.get().trim(), gender, age);
 
             careHome.addResidentToBed(currentUser.getId(), selectedBedId, r);
-            info("Resident added to " + selectedBedId);
+
+            info("Resident added to " + selectedBedId + " with ID " + r.id);
             reloadBeds();
             selectBed(selectedBedId);
-        } catch (Exception ex) { err(ex.getMessage()); }
+        } catch (NumberFormatException nfe) {
+            err("Please enter a valid numeric age.");
+        } catch (Exception ex) {
+            err(ex.getMessage());
+        }
     }
 
     @FXML

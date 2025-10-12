@@ -80,6 +80,10 @@ public class MainController {
         a.showAndWait();
     }
 
+    public void replaceCareHome(CareHome newModel) {
+        this.careHome = newModel;
+    }
+
     @FXML
     private void handleLogout() {
         try {
@@ -146,7 +150,16 @@ public class MainController {
                     Node root = loader.load();
                     var c = loader.getController();
                     if (c instanceof carehome.ui.controller.LogsController lc) {
-                        lc.setContext(careHome, current);
+                        lc.setContext(careHome, current, this); // <— pass main
+                    }
+                    contentArea.getChildren().setAll(root);
+                }
+                case "archive" -> {
+                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/carehome/ui/ArchivesView.fxml"));
+                    Node root = loader.load();
+                    var c = loader.getController();
+                    if (c instanceof carehome.ui.controller.ArchivesController ac) {
+                        ac.setContext(careHome, current, this);
                     }
                     contentArea.getChildren().setAll(root);
                 }

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="10" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="carehome.ui.controller.ArchivesController" prefWidth="980" prefHeight="620">
+    <HBox spacing="12" alignment="CENTER_LEFT" style="-fx-padding:8 8 0 8;">
+        <Label text="Archives" style="-fx-font-size:18; -fx-font-weight:bold;"/>
+        <TextField fx:id="txtSearch" promptText="Search by resident/b ed id…" HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnExport" text="Export CSV"/>
+        <Label fx:id="lblInfo" style="-fx-text-fill:#666;"/>
+    </HBox>
+
+    <SplitPane dividerPositions="0.42">
+        <!-- Left: list of archived stays -->
+        <VBox spacing="6">
+            <TableView fx:id="tblStays" prefHeight="9999">
+                <columns>
+                    <TableColumn fx:id="colWhen" text="Discharged" prefWidth="140"/>
+                    <TableColumn fx:id="colName" text="Resident" prefWidth="180"/>
+                    <TableColumn fx:id="colGender" text="Gender" prefWidth="90"/>
+                    <TableColumn fx:id="colAge" text="Age" prefWidth="70"/>
+                    <TableColumn fx:id="colBed" text="Last Bed" prefWidth="120"/>
+                </columns>
+            </TableView>
+        </VBox>
+
+        <!-- Right: details -->
+        <VBox spacing="8" style="-fx-padding:10;">
+            <TitledPane text="Resident" expanded="true">
+                <GridPane hgap="10" vgap="6" style="-fx-padding:8;">
+                    <columnConstraints>
+                        <ColumnConstraints minWidth="90" halignment="RIGHT"/>
+                        <ColumnConstraints hgrow="ALWAYS"/>
+                    </columnConstraints>
+                    <children>
+                        <Label text="Name:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                        <Label fx:id="lblName" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                        <Label text="ID:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                        <Label fx:id="lblId" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                        <Label text="Gender:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                        <Label fx:id="lblGender" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                        <Label text="Age:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                        <Label fx:id="lblAge" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+                        <Label text="Discharged:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                        <Label fx:id="lblWhen" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+                        <Label text="Last Bed:" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+                        <Label fx:id="lblBed" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+                    </children>
+                </GridPane>
+            </TitledPane>
+
+            <TitledPane text="Prescriptions" expanded="true" VBox.vgrow="ALWAYS">
+                <TableView fx:id="tblPresc" prefHeight="260">
+                    <columns>
+                        <TableColumn fx:id="colPid" text="ID" prefWidth="140"/>
+                        <TableColumn fx:id="colDoc" text="Doctor" prefWidth="120"/>
+                        <TableColumn fx:id="colCreated" text="Created" prefWidth="140"/>
+                        <TableColumn fx:id="colMeds" text="Meds (dose, freq)" prefWidth="380"/>
+                    </columns>
+                </TableView>
+            </TitledPane>
+
+            <TitledPane text="Administrations" expanded="true" VBox.vgrow="ALWAYS">
+                <TableView fx:id="tblAdmins" prefHeight="260">
+                    <columns>
+                        <TableColumn fx:id="colATime" text="Time" prefWidth="140"/>
+                        <TableColumn fx:id="colANurse" text="Nurse" prefWidth="120"/>
+                        <TableColumn fx:id="colAPresc" text="PrescID" prefWidth="140"/>
+                        <TableColumn fx:id="colAMed" text="Medicine" prefWidth="160"/>
+                        <TableColumn fx:id="colANotes" text="Notes" prefWidth="280"/>
+                    </columns>
+                </TableView>
+            </TitledPane>
+        </VBox>
+    </SplitPane>
+</VBox>

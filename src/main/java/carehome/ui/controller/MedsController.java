@@ -19,7 +19,9 @@ import java.util.stream.Collectors;
 public class MedsController {
 
     @FXML private Label lblUser, lblResident, lblGender, lblAge, lblInfo;
-    @FXML private TextField txtBedId;
+
+    // Dropdown for bed selection (occupied beds by default)
+    @FXML private ComboBox<String> cmbBedId;
 
     @FXML private TableView<Prescription> tblPrescriptions;
     @FXML private TableColumn<Prescription,String> colPId, colPCreated, colPDoctor, colPMeds;
@@ -56,13 +58,15 @@ public class MedsController {
         // role gating
         btnAddPresc.setDisable(user.getRole() != Role.DOCTOR);
         btnAdminister.setDisable(user.getRole() != Role.NURSE);
+
+        // Populate bed dropdown (occupied beds only for meds)
+        refreshBedDropdown();
     }
 
     @FXML
     public void initialize() {
         //  Prescriptions table
         colPId.setCellValueFactory(d -> new SimpleStringProperty(safeString(d.getValue(), "id")));
-        //  timeCreated / created / createdAt / timestamp / time
         colPCreated.setCellValueFactory(d -> new SimpleStringProperty(
                 formatDateTime(safeObject(d.getValue(),
                         "timeCreated", "created", "createdAt", "timestamp", "time"))));
@@ -105,8 +109,12 @@ public class MedsController {
     @FXML
     private void handleLoadBed() {
         clearInfo();
-        String bedId = txtBedId.getText() == null ? "" : txtBedId.getText().trim();
-        if (bedId.isEmpty()) { error("Enter a bed ID (e.g., W1-R3-B2)."); return; }
+
+        // Read from dropdown only
+        String bedId = (cmbBedId == null || cmbBedId.getValue() == null)
+                ? "" : cmbBedId.getValue().trim();
+
+        if (bedId.isEmpty()) { error("Select a bed."); return; }
 
         try {
             currentResident = careHome.getResidentInBed(currentUser.getId(), bedId);
@@ -119,6 +127,12 @@ public class MedsController {
             refreshPrescriptions();
             refreshAdmins();
             info("Loaded bed " + bedId);
+
+            // keep combo synced
+            if (cmbBedId.getValue() == null || !cmbBedId.getValue().equals(bedId)) {
+                if (!cmbBedId.getItems().contains(bedId)) cmbBedId.getItems().add(bedId);
+                cmbBedId.setValue(bedId);
+            }
         } catch (NotFoundException nf) {
             // bed missing or vacant
             currentResident = null;
@@ -207,6 +221,25 @@ public class MedsController {
     }
 
     // Helpers
+
+    /** Fill cmbBedId with OCCUPIED beds (meds/admin requires a resident). */
+    private void refreshBedDropdown() {
+        if (cmbBedId == null || careHome == null) return;
+        var occupied = careHome.getBeds().entrySet().stream()
+                .filter(e -> e.getValue() != null && !e.getValue().isVacant())
+                .map(java.util.Map.Entry::getKey)
+                .sorted()
+                .toList();
+        String keep = cmbBedId.getValue();
+        cmbBedId.getItems().setAll(occupied);
+        if (keep != null && occupied.contains(keep)) {
+            cmbBedId.setValue(keep);
+        } else if (!occupied.isEmpty()) {
+            cmbBedId.setValue(occupied.get(0));
+        } else {
+            cmbBedId.setValue(null);
+        }
+    }
 
     private boolean ensureResidentLoaded() {
         if (currentResident == null) {

@@ -22,13 +22,13 @@
             <!-- Bed / Resident header -->
             <HBox spacing="8" alignment="CENTER_LEFT">
                 <Label text="Bed ID:"/>
-                <TextField fx:id="txtBedId" promptText="e.g., W1-R3-B2" prefColumnCount="14"/>
+                <ComboBox fx:id="cmbBedId" promptText="Select a bed" editable="true" prefWidth="180"/>
                 <Button text="Load" onAction="#handleLoadBed"/>
                 <Label text="Resident:" style="-fx-font-weight:bold;"/>
-                <Label fx:id="lblResident" />
-                <Label text="Gender:" style="-fx-padding:0 0 0 16;"/>
+                <Label fx:id="lblResident"/>
+                <Label text="Gender:"/>
                 <Label fx:id="lblGender"/>
-                <Label text="Age:" style="-fx-padding:0 0 0 16;"/>
+                <Label text="Age:"/>
                 <Label fx:id="lblAge"/>
             </HBox>
 

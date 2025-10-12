@@ -11,6 +11,7 @@ public class Administration implements Serializable {
     public final String medicine;
     public final LocalDateTime administeredAt;
     public final String notes;
+    public ActionLog time;
 
     public Administration(String nurseId, String prescriptionId, String medicine, LocalDateTime administeredAt, String notes) {
         this.nurseId = nurseId;

@@ -5,7 +5,7 @@ import java.io.Serializable;
 public final class Resident implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public final String id;
+    public String id;
     public String name;
     public Gender gender;
     public int age;
