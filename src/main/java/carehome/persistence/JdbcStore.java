@@ -12,15 +12,29 @@ public class JdbcStore {
 
     public JdbcStore() {
         this(makeUrl());
+    }
+
+    public JdbcStore(String url) {
+        this.url = Objects.requireNonNull(url);
         ensureDriverLoaded();
     }
 
-    private static String makeUrl() {
-        java.nio.file.Path dir = java.nio.file.Paths.get("data");
-        try { java.nio.file.Files.createDirectories(dir); } catch (Exception ignored) {}
-        java.nio.file.Path db = dir.resolve("carehome.db");
-        return "jdbc:sqlite:" + db.toString();
+    private static void ensureDriverLoaded() {
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException("SQLite JDBC driver not found on classpath", e);
+        }
     }
+
+    private static String makeUrl() {
+        var dir = java.nio.file.Paths.get("data");
+        try { java.nio.file.Files.createDirectories(dir); } catch (Exception ignored) {}
+        var db = dir.resolve("carehome.db");
+        return "jdbc:sqlite:" + db;
+    }
+
+    /** Create tables if missing. */
     public void init() {
         try (Connection c = DriverManager.getConnection(url); Statement s = c.createStatement()) {
             s.executeUpdate("""
@@ -77,7 +91,7 @@ public class JdbcStore {
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
-    // -------- SAVE (snapshot) --------
+    //  SAVE
     public void saveAll(CareHome ch) {
         try (Connection c = DriverManager.getConnection(url)) {
             c.setAutoCommit(false);
@@ -90,24 +104,28 @@ public class JdbcStore {
             }
 
             // staff
-            try (PreparedStatement ps = c.prepareStatement("INSERT INTO staff(id,name,role,username,password) VALUES(?,?,?,?,?)")) {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO staff(id,name,role,username,password) VALUES(?,?,?,?,?)")) {
                 for (Staff s : ch.getStaffById().values()) {
                     ps.setString(1, s.getId());
                     ps.setString(2, s.getName());
                     ps.setString(3, s.getRole().name());
                     ps.setString(4, s.getUsername());
-                    ps.setString(5, s.getPassword()); // assuming stored as plain or hashed in model
+                    ps.setString(5, s.getPassword());
                     ps.addBatch();
                 }
                 ps.executeBatch();
             }
             // meta: managerId
-            try (PreparedStatement ps = c.prepareStatement("INSERT INTO meta(k,v) VALUES('managerId', ?)")) {
-                ps.setString(1, ch.getManagerId()); ps.executeUpdate();
+            try (PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO meta(k,v) VALUES('managerId', ?)")) {
+                ps.setString(1, ch.getManagerId());
+                ps.executeUpdate();
             }
 
             // shifts
-            try (PreparedStatement ps = c.prepareStatement("INSERT INTO shifts(staff_id,start_ts,end_ts) VALUES(?,?,?)")) {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO shifts(staff_id,start_ts,end_ts) VALUES(?,?,?)")) {
                 for (Shift s : ch.getShifts()) {
                     ps.setString(1, s.getStaffId());
                     ps.setString(2, s.getStart().toString());
@@ -118,9 +136,12 @@ public class JdbcStore {
             }
 
             // beds + occupancy
-            try (PreparedStatement pb = c.prepareStatement("INSERT OR IGNORE INTO beds(bed_id) VALUES(?)");
-                 PreparedStatement po = c.prepareStatement("INSERT OR REPLACE INTO bed_occupancy(bed_id,resident_id) VALUES(?,?)");
-                 PreparedStatement pr = c.prepareStatement("INSERT OR REPLACE INTO residents(id,name,gender,age) VALUES(?,?,?,?)")) {
+            try (PreparedStatement pb = c.prepareStatement(
+                    "INSERT OR IGNORE INTO beds(bed_id) VALUES(?)");
+                 PreparedStatement po = c.prepareStatement(
+                         "INSERT OR REPLACE INTO bed_occupancy(bed_id,resident_id) VALUES(?,?)");
+                 PreparedStatement pr = c.prepareStatement(
+                         "INSERT OR REPLACE INTO residents(id,name,gender,age) VALUES(?,?,?,?)")) {
                 for (var e : ch.getBeds().entrySet()) {
                     String bedId = e.getKey();
                     Bed b = e.getValue();
@@ -141,8 +162,10 @@ public class JdbcStore {
             }
 
             // prescriptions + doses
-            try (PreparedStatement pp = c.prepareStatement("INSERT INTO prescriptions(id,doctor_id,resident_id,created_ts) VALUES(?,?,?,?)");
-                 PreparedStatement pm = c.prepareStatement("INSERT INTO medication_doses(presc_id,medicine,dose,freq) VALUES(?,?,?,?)")) {
+            try (PreparedStatement pp = c.prepareStatement(
+                    "INSERT INTO prescriptions(id,doctor_id,resident_id,created_ts) VALUES(?,?,?,?)");
+                 PreparedStatement pm = c.prepareStatement(
+                         "INSERT INTO medication_doses(presc_id,medicine,dose,freq) VALUES(?,?,?,?)")) {
                 for (var entry : ch.getBeds().entrySet()) {
                     Bed b = entry.getValue();
                     if (b.isVacant()) continue;
@@ -155,7 +178,7 @@ public class JdbcStore {
                         if (p.meds != null) for (MedicationDose md : p.meds) {
                             pm.setString(1, p.id);
                             pm.setString(2, md.medicine);
-                            pm.setString(3, md.dosage);
+                            pm.setString(3, md.dosage);       // column 'dose'
                             pm.setString(4, md.frequency);
                             pm.addBatch();
                         }
@@ -165,7 +188,8 @@ public class JdbcStore {
             }
 
             // administrations
-            try (PreparedStatement pa = c.prepareStatement("INSERT INTO administrations(nurse_id,presc_id,medicine,time_ts,notes) VALUES(?,?,?,?,?)")) {
+            try (PreparedStatement pa = c.prepareStatement(
+                    "INSERT INTO administrations(nurse_id,presc_id,medicine,time_ts,notes) VALUES(?,?,?,?,?)")) {
                 for (Administration a : getAllCurrentAdministrations(ch)) {
                     pa.setString(1, a.nurseId);
                     pa.setString(2, a.prescriptionId);
@@ -181,9 +205,12 @@ public class JdbcStore {
             try (PreparedStatement sa = c.prepareStatement(
                     "INSERT INTO archives(discharged_ts,resident_id,resident_name,gender,age,bed_id) VALUES(?,?,?,?,?,?)",
                     Statement.RETURN_GENERATED_KEYS);
-                 PreparedStatement sp = c.prepareStatement("INSERT INTO archive_prescriptions(stay_rowid,id,doctor_id,resident_id,created_ts) VALUES(?,?,?,?,?)");
-                 PreparedStatement sm = c.prepareStatement("INSERT INTO archive_medication_doses(presc_id,medicine,dose,freq) VALUES(?,?,?,?)");
-                 PreparedStatement sn = c.prepareStatement("INSERT INTO archive_administrations(stay_rowid,nurse_id,presc_id,medicine,time_ts,notes) VALUES(?,?,?,?,?,?)")) {
+                 PreparedStatement sp = c.prepareStatement(
+                         "INSERT INTO archive_prescriptions(stay_rowid,id,doctor_id,resident_id,created_ts) VALUES(?,?,?,?,?)");
+                 PreparedStatement sm = c.prepareStatement(
+                         "INSERT INTO archive_medication_doses(presc_id,medicine,dose,freq) VALUES(?,?,?,?)");
+                 PreparedStatement sn = c.prepareStatement(
+                         "INSERT INTO archive_administrations(stay_rowid,nurse_id,presc_id,medicine,time_ts,notes) VALUES(?,?,?,?,?,?)")) {
                 for (ArchivedStay s : ch.getArchives()) {
                     sa.setString(1, s.dischargedAt.toString());
                     sa.setString(2, s.residentId);
@@ -205,7 +232,7 @@ public class JdbcStore {
                         if (p.meds != null) for (MedicationDose md : p.meds) {
                             sm.setString(1, p.id);
                             sm.setString(2, md.medicine);
-                            sm.setString(3, md.dosage);
+                            sm.setString(3, md.dosage);       // column 'dose'
                             sm.setString(4, md.frequency);
                             sm.addBatch();
                         }
@@ -224,7 +251,8 @@ public class JdbcStore {
             }
 
             // logs
-            try (PreparedStatement pl = c.prepareStatement("INSERT INTO logs(time_ts,staff_id,action) VALUES(?,?,?)")) {
+            try (PreparedStatement pl = c.prepareStatement(
+                    "INSERT INTO logs(time_ts,staff_id,action) VALUES(?,?,?)")) {
                 for (ActionLog l : ch.getLogs()) {
                     pl.setString(1, l.time.toString());
                     pl.setString(2, l.staffId);
@@ -238,7 +266,7 @@ public class JdbcStore {
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
-    // LOAD (rebuild in-memory)
+    /** LOAD (rebuild in-memory) */
     public CareHome loadAll() {
         CareHome ch = new CareHome();
         try (Connection c = DriverManager.getConnection(url)) {
@@ -246,44 +274,42 @@ public class JdbcStore {
 
             // staff
             Map<String, Staff> staff = new LinkedHashMap<>();
-            try (PreparedStatement ps = c.prepareStatement("SELECT id,name,role,username,password FROM staff");
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT id,name,role,username,password FROM staff");
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    Staff s = new Staff(rs.getString(1), rs.getString(2), Role.valueOf(rs.getString(3)));
+                    Staff s = new Staff(rs.getString(1), rs.getString(2),
+                            Role.valueOf(rs.getString(3)));
                     ch.rawPutStaff(s);
                     ch.rawSetCredentials(s.getId(), rs.getString(4), rs.getString(5));
                     staff.put(s.getId(), s);
                 }
             }
-            // manager
-            try (PreparedStatement ps = c.prepareStatement("SELECT v FROM meta WHERE k='managerId'");
-                 ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) { /* already handled by rawPutStaff when role=MANAGER */ }
-            }
 
-            // beds
+            // beds + occupancy
             try (PreparedStatement ps = c.prepareStatement("""
                     SELECT b.bed_id, o.resident_id, r.name, r.gender, r.age
                     FROM beds b
                     LEFT JOIN bed_occupancy o ON b.bed_id=o.bed_id
                     LEFT JOIN residents r ON r.id=o.resident_id
-                """); ResultSet rs = ps.executeQuery()) {
+                """);
+                 ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String bedId = rs.getString(1);
-                    ch.getBeds();
                     if (rs.getString(2) != null) {
                         Resident r = new Resident(
                                 rs.getString(2), rs.getString(3),
                                 Gender.valueOf(rs.getString(4)), rs.getInt(5));
                         ch.rawSetResidentInBed(bedId, r);
                     } else {
-                        ch.rawSetResidentInBed(bedId, null); // ensures bed exists as vacant
+                        ch.rawSetResidentInBed(bedId, null);
                     }
                 }
             }
 
             // shifts
-            try (PreparedStatement ps = c.prepareStatement("SELECT staff_id,start_ts,end_ts FROM shifts");
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT staff_id,start_ts,end_ts FROM shifts");
                  ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     ch.rawAddShift(new Shift(
@@ -294,16 +320,18 @@ public class JdbcStore {
                 }
             }
 
-            // prescriptions + doses (active)
+            // prescriptions + doses
             Map<String, List<MedicationDose>> doses = new HashMap<>();
-            try (PreparedStatement pm = c.prepareStatement("SELECT presc_id,medicine,dose,freq FROM medication_doses");
+            try (PreparedStatement pm = c.prepareStatement(
+                    "SELECT presc_id,medicine,dose,freq FROM medication_doses");
                  ResultSet rm = pm.executeQuery()) {
                 while (rm.next()) {
                     doses.computeIfAbsent(rm.getString(1), k -> new ArrayList<>())
                             .add(new MedicationDose(rm.getString(2), rm.getString(3), rm.getString(4)));
                 }
             }
-            try (PreparedStatement pp = c.prepareStatement("SELECT id,doctor_id,resident_id,created_ts FROM prescriptions");
+            try (PreparedStatement pp = c.prepareStatement(
+                    "SELECT id,doctor_id,resident_id,created_ts FROM prescriptions");
                  ResultSet rp = pp.executeQuery()) {
                 while (rp.next()) {
                     String pid = rp.getString(1);
@@ -333,16 +361,17 @@ public class JdbcStore {
                 while (rs.next()) {
                     long row = rs.getLong(1);
                     LocalDateTime when = LocalDateTime.parse(rs.getString(2));
-                    String rid = rs.getString(3);
+                    String rid  = rs.getString(3);
                     String name = rs.getString(4);
-                    Gender g = Gender.valueOf(rs.getString(5));
-                    int age = rs.getInt(6);
-                    String bedId = rs.getString(7);
+                    Gender g    = Gender.valueOf(rs.getString(5));
+                    int age     = rs.getInt(6);
+                    String bedId= rs.getString(7);
 
                     // archived prescriptions + doses
                     Map<String, List<MedicationDose>> adoses = new HashMap<>();
                     try (PreparedStatement sm = c.prepareStatement(
-                            "SELECT presc_id,medicine,dose,freq FROM archive_medication_doses WHERE presc_id IN (SELECT id FROM archive_prescriptions WHERE stay_rowid=?)")) {
+                            "SELECT presc_id,medicine,dose,freq FROM archive_medication_doses " +
+                                    "WHERE presc_id IN (SELECT id FROM archive_prescriptions WHERE stay_rowid=?)")) {
                         sm.setLong(1, row);
                         try (ResultSet rm = sm.executeQuery()) {
                             while (rm.next()) {
@@ -385,9 +414,9 @@ public class JdbcStore {
                  ResultSet rl = pl.executeQuery()) {
                 while (rl.next()) {
                     ch.rawAddLog(new ActionLog(
-                            rl.getString(2),                       // staff_id
-                            rl.getString(3),                       // action
-                            java.time.LocalDateTime.parse(rl.getString(1)) // time_ts
+                            rl.getString(2),
+                            rl.getString(3),
+                            LocalDateTime.parse(rl.getString(1))
                     ));
                 }
             }
@@ -397,10 +426,8 @@ public class JdbcStore {
         return ch;
     }
 
-    // Collect current administrations (active, non-archived)
+    /** Collect current administrations (active, non-archived) from CareHome. */
     private List<Administration> getAllCurrentAdministrations(CareHome ch) {
-        // You already fetch by resident for GUI; here we assume administrations field
-        // is the current-active list stored in CareHome.
         try {
             var f = CareHome.class.getDeclaredField("administrations");
             f.setAccessible(true);
