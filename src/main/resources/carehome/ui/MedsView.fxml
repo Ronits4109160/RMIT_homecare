@@ -63,32 +63,52 @@
 
             <!-- Actions -->
             <HBox spacing="16">
+                <!-- Doctor Actions -->
                 <TitledPane text="Doctor Actions" expanded="true">
                     <content>
-                        <GridPane hgap="8" vgap="6" style="-fx-padding:8;">
-                            <columnConstraints>
-                                <ColumnConstraints minWidth="100"/>
-                                <ColumnConstraints hgrow="ALWAYS"/>
-                            </columnConstraints>
+                        <VBox spacing="8" style="-fx-padding:8;">
+                            <!-- Staged medications table -->
+                            <TableView fx:id="tblMedsTemp" prefHeight="140">
+                                <columns>
+                                    <TableColumn fx:id="colMName" text="Medicine" prefWidth="180"/>
+                                    <TableColumn fx:id="colMDose" text="Dose" prefWidth="120"/>
+                                    <TableColumn fx:id="colMFreq" text="Frequency" prefWidth="140"/>
+                                </columns>
+                                <placeholder><Label text="No medicines added yet"/></placeholder>
+                            </TableView>
 
-                            <Label text="Prescription ID:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-                            <TextField fx:id="txtPrescId" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                            <!-- Inputs -->
+                            <GridPane hgap="8" vgap="6">
+                                <columnConstraints>
+                                    <ColumnConstraints minWidth="110"/>
+                                    <ColumnConstraints hgrow="ALWAYS"/>
+                                </columnConstraints>
 
-                            <Label text="Medicine:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-                            <TextField fx:id="txtMedName" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                                <Label text="Prescription ID:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                                <TextField fx:id="txtPrescId" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
 
-                            <Label text="Dose:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                            <TextField fx:id="txtDose" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                                <Label text="Medicine:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                                <TextField fx:id="txtMedName" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
 
-                            <Label text="Frequency:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-                            <TextField fx:id="txtFreq" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+                                <Label text="Dose:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                                <TextField fx:id="txtDose" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
 
-                            <Button fx:id="btnAddPresc" text="Add Prescription" GridPane.rowIndex="4" GridPane.columnIndex="1"
-                                    onAction="#handleAddPrescription"/>
-                        </GridPane>
+                                <Label text="Frequency:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                                <TextField fx:id="txtFreq" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+                            </GridPane>
+
+                            <!-- Buttons -->
+                            <HBox spacing="8">
+                                <Button fx:id="btnAddMed" text="Add medicine" onAction="#handleAddMedicine"/>
+                                <Button fx:id="btnRemoveMed" text="Remove selected" onAction="#handleRemoveSelectedMed"/>
+                                <Pane HBox.hgrow="ALWAYS"/>
+                                <Button fx:id="btnAddPresc" text="Add Prescription" onAction="#handleAddPrescription"/>
+                            </HBox>
+                        </VBox>
                     </content>
                 </TitledPane>
 
+                <!-- Nurse Actions -->
                 <TitledPane text="Nurse Actions" expanded="true">
                     <content>
                         <GridPane hgap="8" vgap="6" style="-fx-padding:8;">

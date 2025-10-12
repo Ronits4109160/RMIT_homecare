@@ -10,9 +10,7 @@ import java.util.*;
 public class JdbcStore {
     private final String url;
 
-    public JdbcStore() {
-        this(makeUrl());
-    }
+    public JdbcStore() { this(makeUrl()); }
 
     public JdbcStore(String url) {
         this.url = Objects.requireNonNull(url);
@@ -91,13 +89,31 @@ public class JdbcStore {
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
+    private static void setStr(PreparedStatement ps, int idx, String v) throws SQLException {
+        if (v == null || v.isBlank()) ps.setNull(idx, Types.VARCHAR);
+        else ps.setString(idx, v);
+    }
+    private static void setLdt(PreparedStatement ps, int idx, LocalDateTime dt) throws SQLException {
+        setStr(ps, idx, dt == null ? null : dt.toString());
+    }
+    private static LocalDateTime defaultIfNull(LocalDateTime dt) {
+        return (dt == null ? LocalDateTime.now() : dt);
+    }
+    private static LocalDateTime parseLdt(String s) {
+        return (s == null || s.isBlank()) ? LocalDateTime.now() : LocalDateTime.parse(s);
+    }
+    private static void setActionLogTime(PreparedStatement ps, int idx, ActionLog al) throws SQLException {
+        setLdt(ps, idx, al == null ? null : al.getTime());
+    }
+
     //  SAVE
     public void saveAll(CareHome ch) {
         try (Connection c = DriverManager.getConnection(url)) {
             c.setAutoCommit(false);
 
             // clear tables
-            for (String t : List.of("logs","archive_administrations","archive_medication_doses",
+            for (String t : List.of(
+                    "logs","archive_administrations","archive_medication_doses",
                     "archive_prescriptions","archives","administrations","medication_doses",
                     "prescriptions","bed_occupancy","residents","beds","shifts","staff","meta")) {
                 try (Statement st = c.createStatement()) { st.executeUpdate("DELETE FROM " + t); }
@@ -107,11 +123,11 @@ public class JdbcStore {
             try (PreparedStatement ps = c.prepareStatement(
                     "INSERT INTO staff(id,name,role,username,password) VALUES(?,?,?,?,?)")) {
                 for (Staff s : ch.getStaffById().values()) {
-                    ps.setString(1, s.getId());
-                    ps.setString(2, s.getName());
-                    ps.setString(3, s.getRole().name());
-                    ps.setString(4, s.getUsername());
-                    ps.setString(5, s.getPassword());
+                    setStr(ps, 1, s.getId());
+                    setStr(ps, 2, s.getName());
+                    setStr(ps, 3, s.getRole() == null ? null : s.getRole().name());
+                    setStr(ps, 4, s.getUsername());
+                    setStr(ps, 5, s.getPassword());
                     ps.addBatch();
                 }
                 ps.executeBatch();
@@ -119,7 +135,7 @@ public class JdbcStore {
             // meta: managerId
             try (PreparedStatement ps = c.prepareStatement(
                     "INSERT INTO meta(k,v) VALUES('managerId', ?)")) {
-                ps.setString(1, ch.getManagerId());
+                setStr(ps, 1, ch.getManagerId());
                 ps.executeUpdate();
             }
 
@@ -127,15 +143,15 @@ public class JdbcStore {
             try (PreparedStatement ps = c.prepareStatement(
                     "INSERT INTO shifts(staff_id,start_ts,end_ts) VALUES(?,?,?)")) {
                 for (Shift s : ch.getShifts()) {
-                    ps.setString(1, s.getStaffId());
-                    ps.setString(2, s.getStart().toString());
-                    ps.setString(3, s.getEnd().toString());
+                    setStr(ps, 1, s.getStaffId());
+                    setLdt(ps, 2, s.getStart());
+                    setLdt(ps, 3, s.getEnd());
                     ps.addBatch();
                 }
                 ps.executeBatch();
             }
 
-            // beds + occupancy
+            // beds + occupancy + residents
             try (PreparedStatement pb = c.prepareStatement(
                     "INSERT OR IGNORE INTO beds(bed_id) VALUES(?)");
                  PreparedStatement po = c.prepareStatement(
@@ -145,16 +161,18 @@ public class JdbcStore {
                 for (var e : ch.getBeds().entrySet()) {
                     String bedId = e.getKey();
                     Bed b = e.getValue();
-                    pb.setString(1, bedId); pb.addBatch();
-                    if (!b.isVacant()) {
+                    setStr(pb, 1, bedId); pb.addBatch();
+
+                    if (b != null && !b.isVacant()) {
                         Resident r = b.occupant;
-                        pr.setString(1, r.id);
-                        pr.setString(2, r.name);
-                        pr.setString(3, r.gender.name());
+                        setStr(pr, 1, r.id);
+                        setStr(pr, 2, r.name);
+                        setStr(pr, 3, r.gender == null ? null : r.gender.name());
                         pr.setInt(4, r.age);
                         pr.addBatch();
-                        po.setString(1, bedId);
-                        po.setString(2, r.id);
+
+                        setStr(po, 1, bedId);
+                        setStr(po, 2, r.id);
                         po.addBatch();
                     }
                 }
@@ -166,36 +184,48 @@ public class JdbcStore {
                     "INSERT INTO prescriptions(id,doctor_id,resident_id,created_ts) VALUES(?,?,?,?)");
                  PreparedStatement pm = c.prepareStatement(
                          "INSERT INTO medication_doses(presc_id,medicine,dose,freq) VALUES(?,?,?,?)")) {
+
                 for (var entry : ch.getBeds().entrySet()) {
                     Bed b = entry.getValue();
-                    if (b.isVacant()) continue;
-                    for (Prescription p : ch.getPrescriptionsForResident(b.occupant.id)) {
-                        pp.setString(1, p.id);
-                        pp.setString(2, p.doctorId);
-                        pp.setString(3, p.residentId);
-                        pp.setString(4, p.timeCreated.toString());
+                    if (b == null || b.isVacant()) continue;
+
+                    List<Prescription> prescs = ch.getPrescriptionsForResident(b.occupant.id);
+                    if (prescs == null) continue;
+
+                    for (Prescription p : prescs) {
+                        if (p == null) continue;
+                        setStr(pp, 1, p.id);
+                        setStr(pp, 2, p.doctorId);
+                        setStr(pp, 3, p.residentId);
+                        // created_ts comes from ActionLog (Prescription.timeCreated)
+                        setActionLogTime(pp, 4, p.timeCreated);
                         pp.addBatch();
-                        if (p.meds != null) for (MedicationDose md : p.meds) {
-                            pm.setString(1, p.id);
-                            pm.setString(2, md.medicine);
-                            pm.setString(3, md.dosage);       // column 'dose'
-                            pm.setString(4, md.frequency);
-                            pm.addBatch();
+
+                        if (p.meds != null) {
+                            for (MedicationDose md : p.meds) {
+                                if (md == null) continue;
+                                setStr(pm, 1, p.id);
+                                setStr(pm, 2, md.medicine);
+                                setStr(pm, 3, md.dosage);     // DB column is 'dose'
+                                setStr(pm, 4, md.frequency);
+                                pm.addBatch();
+                            }
                         }
                     }
                 }
                 pp.executeBatch(); pm.executeBatch();
             }
 
-            // administrations
+            // administrations (active)
             try (PreparedStatement pa = c.prepareStatement(
                     "INSERT INTO administrations(nurse_id,presc_id,medicine,time_ts,notes) VALUES(?,?,?,?,?)")) {
                 for (Administration a : getAllCurrentAdministrations(ch)) {
-                    pa.setString(1, a.nurseId);
-                    pa.setString(2, a.prescriptionId);
-                    pa.setString(3, a.medicine);
-                    pa.setString(4, a.time.toString());
-                    pa.setString(5, a.notes);
+                    if (a == null) continue;
+                    setStr(pa, 1, a.nurseId);
+                    setStr(pa, 2, a.prescriptionId);
+                    setStr(pa, 3, a.medicine);
+                    setActionLogTime(pa, 4, a.time);
+                    setStr(pa, 5, a.notes);
                     pa.addBatch();
                 }
                 pa.executeBatch();
@@ -211,41 +241,61 @@ public class JdbcStore {
                          "INSERT INTO archive_medication_doses(presc_id,medicine,dose,freq) VALUES(?,?,?,?)");
                  PreparedStatement sn = c.prepareStatement(
                          "INSERT INTO archive_administrations(stay_rowid,nurse_id,presc_id,medicine,time_ts,notes) VALUES(?,?,?,?,?,?)")) {
+
                 for (ArchivedStay s : ch.getArchives()) {
-                    sa.setString(1, s.dischargedAt.toString());
-                    sa.setString(2, s.residentId);
-                    sa.setString(3, s.residentName);
-                    sa.setString(4, s.gender.name());
+                    if (s == null) continue;
+
+                    setLdt(sa, 1, s.dischargedAt);
+                    setStr(sa, 2, s.residentId);
+                    setStr(sa, 3, s.residentName);
+                    setStr(sa, 4, s.gender == null ? null : s.gender.name());
                     sa.setInt(5, s.age);
-                    sa.setString(6, s.lastBedId);
+                    setStr(sa, 6, s.lastBedId);
                     sa.executeUpdate();
+
                     long stayRowId;
                     try (ResultSet rs = sa.getGeneratedKeys()) { rs.next(); stayRowId = rs.getLong(1); }
 
-                    for (Prescription p : s.prescriptions) {
-                        sp.setLong(1, stayRowId);
-                        sp.setString(2, p.id);
-                        sp.setString(3, p.doctorId);
-                        sp.setString(4, p.residentId);
-                        sp.setString(5, p.timeCreated.toString());
-                        sp.addBatch();
-                        if (p.meds != null) for (MedicationDose md : p.meds) {
-                            sm.setString(1, p.id);
-                            sm.setString(2, md.medicine);
-                            sm.setString(3, md.dosage);       // column 'dose'
-                            sm.setString(4, md.frequency);
-                            sm.addBatch();
+                    if (s.prescriptions != null) {
+                        for (Prescription p : s.prescriptions) {
+                            if (p == null) continue;
+                            sp.setLong(1, stayRowId);
+                            setStr(sp, 2, p.id);
+                            setStr(sp, 3, p.doctorId);
+                            setStr(sp, 4, p.residentId);
+                            // created_ts for archived prescriptions (ActionLog on Prescription)
+                            setActionLogTime(sp, 5, p.timeCreated);
+                            sp.addBatch();
+
+                            if (p.meds != null) {
+                                for (MedicationDose md : p.meds) {
+                                    if (md == null) continue;
+                                    setStr(sm, 1, p.id);
+                                    setStr(sm, 2, md.medicine);
+                                    setStr(sm, 3, md.dosage);
+                                    setStr(sm, 4, md.frequency);
+                                    sm.addBatch();
+                                }
+                            }
                         }
                     }
-                    for (Administration a : s.administrations) {
-                        sn.setLong(1, stayRowId);
-                        sn.setString(2, a.nurseId);
-                        sn.setString(3, a.prescriptionId);
-                        sn.setString(4, a.medicine);
-                        sn.setString(5, a.time.toString());
-                        sn.setString(6, a.notes);
-                        sn.addBatch();
+
+                    if (s.administrations != null) {
+                        for (Administration a : s.administrations) {
+                            if (a == null) continue;
+
+                            sn.setLong(1, stayRowId);
+                            setStr(sn, 2, a.nurseId);
+                            setStr(sn, 3, a.prescriptionId);
+                            setStr(sn, 4, a.medicine);
+                            // was: setLdt(sn, 5, a.time);  // a.time is ActionLog
+                            setActionLogTime(sn, 5, a.time);   // uses ActionLog.getTime() safely
+                            setStr(sn, 6, a.notes);
+                            sn.addBatch();
+                        }
                     }
+
+
                     sp.executeBatch(); sm.executeBatch(); sn.executeBatch();
                 }
             }
@@ -254,19 +304,22 @@ public class JdbcStore {
             try (PreparedStatement pl = c.prepareStatement(
                     "INSERT INTO logs(time_ts,staff_id,action) VALUES(?,?,?)")) {
                 for (ActionLog l : ch.getLogs()) {
-                    pl.setString(1, l.time.toString());
-                    pl.setString(2, l.staffId);
-                    pl.setString(3, l.action);
+                    if (l == null) continue;
+                    setLdt(pl, 1, l.getTime());
+                    setStr(pl, 2, l.getStaffId());
+                    setStr(pl, 3, l.getAction());
                     pl.addBatch();
                 }
                 pl.executeBatch();
             }
 
             c.commit();
-        } catch (SQLException e) { throw new RuntimeException(e); }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    /** LOAD (rebuild in-memory) */
+    /** LOAD  */
     public CareHome loadAll() {
         CareHome ch = new CareHome();
         try (Connection c = DriverManager.getConnection(url)) {
@@ -314,8 +367,8 @@ public class JdbcStore {
                 while (rs.next()) {
                     ch.rawAddShift(new Shift(
                             rs.getString(1),
-                            LocalDateTime.parse(rs.getString(2)),
-                            LocalDateTime.parse(rs.getString(3))
+                            parseLdt(rs.getString(2)),
+                            parseLdt(rs.getString(3))
                     ));
                 }
             }
@@ -337,7 +390,7 @@ public class JdbcStore {
                     String pid = rp.getString(1);
                     Prescription p = new Prescription(
                             pid, rp.getString(2), rp.getString(3),
-                            LocalDateTime.parse(rp.getString(4)),
+                            parseLdt(rp.getString(4)),
                             doses.getOrDefault(pid, List.of()));
                     ch.rawAddPrescription(p.residentId, p);
                 }
@@ -350,7 +403,7 @@ public class JdbcStore {
                 while (ra.next()) {
                     ch.rawAddAdministration(new Administration(
                             ra.getString(1), ra.getString(2), ra.getString(3),
-                            LocalDateTime.parse(ra.getString(4)), ra.getString(5)));
+                            parseLdt(ra.getString(4)), ra.getString(5)));
                 }
             }
 
@@ -360,7 +413,7 @@ public class JdbcStore {
                  ResultSet rs = sa.executeQuery()) {
                 while (rs.next()) {
                     long row = rs.getLong(1);
-                    LocalDateTime when = LocalDateTime.parse(rs.getString(2));
+                    LocalDateTime when = parseLdt(rs.getString(2));
                     String rid  = rs.getString(3);
                     String name = rs.getString(4);
                     Gender g    = Gender.valueOf(rs.getString(5));
@@ -388,7 +441,7 @@ public class JdbcStore {
                             while (rp.next()) {
                                 String pid = rp.getString(1);
                                 ap.add(new Prescription(pid, rp.getString(2), rp.getString(3),
-                                        LocalDateTime.parse(rp.getString(4)),
+                                        parseLdt(rp.getString(4)),
                                         adoses.getOrDefault(pid, List.of())));
                             }
                         }
@@ -400,7 +453,7 @@ public class JdbcStore {
                         try (ResultSet rn = sn.executeQuery()) {
                             while (rn.next()) {
                                 aa.add(new Administration(rn.getString(1), rn.getString(2), rn.getString(3),
-                                        LocalDateTime.parse(rn.getString(4)), rn.getString(5)));
+                                        parseLdt(rn.getString(4)), rn.getString(5)));
                             }
                         }
                     }
@@ -416,7 +469,7 @@ public class JdbcStore {
                     ch.rawAddLog(new ActionLog(
                             rl.getString(2),
                             rl.getString(3),
-                            LocalDateTime.parse(rl.getString(1))
+                            parseLdt(rl.getString(1))
                     ));
                 }
             }
@@ -426,14 +479,13 @@ public class JdbcStore {
         return ch;
     }
 
-    /** Collect current administrations (active, non-archived) from CareHome. */
     private List<Administration> getAllCurrentAdministrations(CareHome ch) {
         try {
             var f = CareHome.class.getDeclaredField("administrations");
             f.setAccessible(true);
             @SuppressWarnings("unchecked")
             List<Administration> list = (List<Administration>) f.get(ch);
-            return new ArrayList<>(list);
+            return (list == null) ? new java.util.ArrayList<>() : new java.util.ArrayList<>(list);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
