@@ -37,7 +37,6 @@ public class LogsController {
     private final ObservableList<ActionLog> data = FXCollections.observableArrayList();
     private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    /** Preferred: called from MainController with a shared db URL. */
     public void setContext(CareHome ch, Staff user, MainController main) {
         this.careHome = ch;
         this.currentUser = user;
@@ -52,7 +51,6 @@ public class LogsController {
         refresh();
     }
 
-    /** Backward-compatible overload (if main not provided). */
     public void setContext(CareHome ch, Staff user) {
         setContext(ch, user, null);
     }
@@ -72,7 +70,7 @@ public class LogsController {
         tblLogs.setItems(data);
     }
 
-    // ====== Actions ======
+    // Actions
 
     @FXML
     private void handleRefresh() { refresh(); }
@@ -111,8 +109,6 @@ public class LogsController {
         }
     }
 
-    // ====== Data & filtering ======
-
     private void refresh() {
         data.setAll(careHome.getLogs()); // base list
 
@@ -137,7 +133,7 @@ public class LogsController {
         info(data.size() + " log(s).");
     }
 
-    // ====== Helpers ======
+    // Helpers
 
     private String resolveRole(String staffId) {
         if (staffId == null || staffId.isEmpty()) return "";
@@ -162,7 +158,6 @@ public class LogsController {
         a.showAndWait();
     }
 
-    // --- reflection-lite utils ---
     private String safeString(Object obj, String... names) {
         Object val = safeObject(obj, names);
         return val == null ? "" : String.valueOf(val);

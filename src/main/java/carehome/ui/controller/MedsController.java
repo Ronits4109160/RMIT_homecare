@@ -37,6 +37,12 @@ public class MedsController {
     @FXML private TextField txtAdminPrescId, txtAdminMed, txtAdminDose, txtAdminNotes;
     @FXML private Button btnAdminister;
 
+    // UI for multiple meds
+    @FXML private TableView<MedicationDose> tblMedsTemp;
+    @FXML private TableColumn<MedicationDose,String> colMName, colMDose, colMFreq;
+    @FXML private Button btnAddMed, btnRemoveMed;
+    private final ObservableList<MedicationDose> stagedMeds = FXCollections.observableArrayList();
+
     private CareHome careHome;
     private Staff currentUser;
     private MainController main;
@@ -59,7 +65,7 @@ public class MedsController {
         btnAddPresc.setDisable(user.getRole() != Role.DOCTOR);
         btnAdminister.setDisable(user.getRole() != Role.NURSE);
 
-        // Populate bed dropdown (occupied beds only for meds)
+        // Populate bed dropdown
         refreshBedDropdown();
     }
 
@@ -72,7 +78,7 @@ public class MedsController {
                         "timeCreated", "created", "createdAt", "timestamp", "time"))));
         colPDoctor.setCellValueFactory(d -> new SimpleStringProperty(
                 safeString(d.getValue(), "doctorId", "doctor", "doctorID")));
-        // supports meds list with fields: medicine/name/drugName, dose/dosage, frequency/freq/schedule
+        // supports meds list with fields -  medicine/name/drugName, dose/dosage, frequency/freq/schedule
         colPMeds.setCellValueFactory(d -> new SimpleStringProperty(
                 medsSummary(safeObject(d.getValue(), "meds", "medications", "items"))
         ));
@@ -89,8 +95,18 @@ public class MedsController {
                 safeString(d.getValue(), "medicine", "drug", "name")));
         colANotes.setCellValueFactory(d -> new SimpleStringProperty(
                 safeString(d.getValue(), "notes", "remark", "comment")));
-
         tblAdmins.setItems(adminData);
+
+        // Meds staging table
+        if (tblMedsTemp != null) {
+            colMName.setCellValueFactory(d -> new SimpleStringProperty(
+                    safeString(d.getValue(), "medicine", "name", "drugName")));
+            colMDose.setCellValueFactory(d -> new SimpleStringProperty(
+                    safeString(d.getValue(), "dose", "dosage", "amount")));
+            colMFreq.setCellValueFactory(d -> new SimpleStringProperty(
+                    safeString(d.getValue(), "frequency", "freq", "schedule")));
+            tblMedsTemp.setItems(stagedMeds);
+        }
 
         // Clicking a prescription populates nurse form and filters admins
         tblPrescriptions.getSelectionModel().selectedItemProperty().addListener((obs, o, p) -> {
@@ -110,7 +126,6 @@ public class MedsController {
     private void handleLoadBed() {
         clearInfo();
 
-        // Read from dropdown only
         String bedId = (cmbBedId == null || cmbBedId.getValue() == null)
                 ? "" : cmbBedId.getValue().trim();
 
@@ -134,7 +149,6 @@ public class MedsController {
                 cmbBedId.setValue(bedId);
             }
         } catch (NotFoundException nf) {
-            // bed missing or vacant
             currentResident = null;
             currentBedId = bedId;
             lblResident.setText("—");
@@ -153,23 +167,75 @@ public class MedsController {
         if (currentUser.getRole() != Role.DOCTOR) { unauthorized("Only DOCTOR can add prescriptions."); return; }
         if (!ensureResidentLoaded()) return;
 
-        String pid  = val(txtPrescId, "Prescription ID");
-        String med  = val(txtMedName, "Medicine");
-        String dose = val(txtDose, "Dose");
-        String freq = val(txtFreq, "Frequency");
-        if (pid == null || med == null || dose == null || freq == null) return;
+        String pid = val(txtPrescId, "Prescription ID");
+        if (pid == null) return;
+
+        final java.util.List<MedicationDose> meds = new java.util.ArrayList<>();
+
+        if (tblMedsTemp != null && tblMedsTemp.getItems() != null && !tblMedsTemp.getItems().isEmpty()) {
+            meds.addAll(tblMedsTemp.getItems());
+        } else {
+            String med  = val(txtMedName, "Medicine");
+            String dose = val(txtDose, "Dose");
+            String freq = val(txtFreq, "Frequency");
+            if (med == null || dose == null || freq == null) return;
+            meds.add(new MedicationDose(med, dose, freq));
+        }
+
+        if (meds.isEmpty()) {
+            error("Add at least one medicine before creating the prescription.");
+            return;
+        }
 
         try {
-            MedicationDose md = new MedicationDose(med, dose, freq);
-            java.util.List<MedicationDose> meds = java.util.List.of(md);
-            Prescription p = new Prescription(pid, currentUser.getId(), currentResident.id, LocalDateTime.now(), meds);
+            LocalDateTime now = LocalDateTime.now();
+            Prescription p = new Prescription(pid, currentUser.getId(), currentResident.id, now, java.util.List.copyOf(meds));
+            careHome.addPrescription(currentUser.getId(), currentBedId, p, now);
 
-            careHome.addPrescription(currentUser.getId(), currentBedId, p, LocalDateTime.now());
-            info("Prescription added for " + currentResident.name + ".");
-            clearDoctorForm();
+            info("Prescription added for " + currentResident.name + " (" + meds.size() + " med"
+                    + (meds.size() == 1 ? "" : "s") + ").");
+
+            // Reset inputs
+            txtPrescId.clear();
+            if (tblMedsTemp != null && tblMedsTemp.getItems() != null) {
+                tblMedsTemp.getItems().clear();
+            } else {
+                txtMedName.clear();
+                txtDose.clear();
+                txtFreq.clear();
+            }
+
             refreshPrescriptions();
         } catch (Exception ex) {
             error(ex.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleAddMedicine() {
+        String med  = val(txtMedName, "Medicine");
+        String dose = val(txtDose, "Dose");
+        String freq = val(txtFreq, "Frequency");
+        if (med == null || dose == null || freq == null) return;
+
+        stagedMeds.add(new MedicationDose(med, dose, freq));
+
+        // clear inputs for next line
+        txtMedName.clear();
+        txtDose.clear();
+        txtFreq.clear();
+        info("Added medicine to list.");
+    }
+
+    @FXML
+    private void handleRemoveSelectedMed() {
+        MedicationDose sel = (tblMedsTemp == null) ? null : tblMedsTemp.getSelectionModel().getSelectedItem();
+        if (sel != null) {
+            stagedMeds.remove(sel);
+            info("Removed selected medicine.");
+        } else if (!stagedMeds.isEmpty()) {
+            stagedMeds.remove(stagedMeds.size() - 1);
+            info("Removed last medicine.");
         }
     }
 
@@ -222,7 +288,6 @@ public class MedsController {
 
     // Helpers
 
-    /** Fill cmbBedId with OCCUPIED beds (meds/admin requires a resident). */
     private void refreshBedDropdown() {
         if (cmbBedId == null || careHome == null) return;
         var occupied = careHome.getBeds().entrySet().stream()
@@ -256,13 +321,6 @@ public class MedsController {
             return null;
         }
         return s;
-    }
-
-    private void clearDoctorForm() {
-        txtPrescId.clear();
-        txtMedName.clear();
-        txtDose.clear();
-        txtFreq.clear();
     }
 
     private void clearNurseForm() {
@@ -329,7 +387,6 @@ public class MedsController {
             } catch (NoSuchFieldException ignored) { }
             catch (Exception ignored) { }
         }
-        // getters: getX()/isX()
         for (String n : names) {
             String base = Character.toUpperCase(n.charAt(0)) + n.substring(1);
             for (String p : new String[]{"get", "is"}) {

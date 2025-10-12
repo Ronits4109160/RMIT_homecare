@@ -329,10 +329,6 @@ public class CareHome implements Serializable {
         return !beds.isEmpty();
     }
 
-    /**
-     * Discharge a resident
-     * Frees the bed and archives the full stay .
-     */
     public ArchivedStay dischargeResident(String actorId, String bedId, LocalDateTime when) {
         Staff actor = staffById.get(actorId);
         if (actor == null) throw new UnauthorizedException("Unrecognized staff: " + actorId);

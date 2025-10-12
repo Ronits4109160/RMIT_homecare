@@ -5,16 +5,15 @@ import carehome.service.CareHome;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAccessor;
 import java.util.List;
 import java.util.stream.Collectors;
-import javafx.collections.ObservableList;
-
 
 public class ArchivesController {
 
@@ -42,6 +41,12 @@ public class ArchivesController {
 
     private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+    //  helpers
+    private static String fmt(LocalDateTime t) {
+        return (t == null) ? "" : TS.format(t);
+    }
+    private static String safe(String s) { return s == null ? "" : s; }
+
     public void setContext(CareHome ch, Staff current, MainController main) {
         this.careHome = ch;
         this.main = main;
@@ -51,30 +56,43 @@ public class ArchivesController {
     @FXML
     public void initialize() {
         // Stays table
-        colWhen.setCellValueFactory(d -> new SimpleStringProperty(TS.format(d.getValue().dischargedAt)));
-        colName.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().residentName));
-        colGender.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().gender.name()));
+        colWhen.setCellValueFactory(d -> new SimpleStringProperty(fmt(d.getValue().dischargedAt)));
+        colName.setCellValueFactory(d -> new SimpleStringProperty(safe(d.getValue().residentName)));
+        colGender.setCellValueFactory(d -> new SimpleStringProperty(
+                d.getValue().gender == null ? "" : d.getValue().gender.name()));
         colAge.setCellValueFactory(d -> new SimpleStringProperty(String.valueOf(d.getValue().age)));
-        colBed.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().lastBedId));
+        colBed.setCellValueFactory(d -> new SimpleStringProperty(safe(d.getValue().lastBedId)));
         tblStays.setItems(stays);
 
         // Prescriptions table
-        colPid.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().id));
-        colDoc.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().doctorId));
-        colCreated.setCellValueFactory(d -> new SimpleStringProperty(TS.format((TemporalAccessor) d.getValue().timeCreated)));
+        colPid.setCellValueFactory(d -> new SimpleStringProperty(safe(d.getValue().id)));
+        colDoc.setCellValueFactory(d -> new SimpleStringProperty(safe(d.getValue().doctorId)));
+        colCreated.setCellValueFactory(d -> {
+            ActionLog al = d.getValue().timeCreated; // unwrap ActionLog -> LocalDateTime
+            LocalDateTime t = (al == null) ? null : al.getTime();
+            return new SimpleStringProperty(fmt(t));
+        });
         colMeds.setCellValueFactory(d -> new SimpleStringProperty(
                 d.getValue().meds == null ? "" :
                         d.getValue().meds.stream()
-                                .map(m -> m.medicine + " (" + m.dosage + ", " + m.frequency + ")")
+                                .map(m -> safe(m.medicine)
+                                        + (m.dosage == null && m.frequency == null ? "" :
+                                        " (" + safe(m.dosage)
+                                                + ((m.dosage != null && m.frequency != null) ? ", " : "")
+                                                + safe(m.frequency) + ")"))
                                 .collect(Collectors.joining("; "))
         ));
 
         // Admins table
-        colATime.setCellValueFactory(d -> new SimpleStringProperty(TS.format((TemporalAccessor) d.getValue().time)));
-        colANurse.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().nurseId));
-        colAPresc.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().prescriptionId));
-        colAMed.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().medicine));
-        colANotes.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().notes == null ? "" : d.getValue().notes));
+        colATime.setCellValueFactory(d -> {
+            ActionLog al = d.getValue().time;
+            LocalDateTime t = (al == null) ? null : al.getTime();
+            return new SimpleStringProperty(fmt(t));
+        });
+        colANurse.setCellValueFactory(d -> new SimpleStringProperty(safe(d.getValue().nurseId)));
+        colAPresc.setCellValueFactory(d -> new SimpleStringProperty(safe(d.getValue().prescriptionId)));
+        colAMed.setCellValueFactory(d -> new SimpleStringProperty(safe(d.getValue().medicine)));
+        colANotes.setCellValueFactory(d -> new SimpleStringProperty(safe(d.getValue().notes)));
 
         // Selection -> details
         tblStays.getSelectionModel().selectedItemProperty().addListener((obs, o, s) -> showStay(s));
@@ -83,9 +101,9 @@ public class ArchivesController {
         txtSearch.textProperty().addListener((obs, o, q) -> {
             String qq = q == null ? "" : q.trim().toLowerCase();
             stays.setPredicate(st -> qq.isEmpty()
-                    || st.residentName.toLowerCase().contains(qq)
-                    || st.residentId.toLowerCase().contains(qq)
-                    || st.lastBedId.toLowerCase().contains(qq));
+                    || safe(st.residentName).toLowerCase().contains(qq)
+                    || safe(st.residentId).toLowerCase().contains(qq)
+                    || safe(st.lastBedId).toLowerCase().contains(qq));
             lblInfo.setText(stays.size() + " record(s)");
         });
 
@@ -96,20 +114,14 @@ public class ArchivesController {
 
     private void refresh() {
         if (careHome == null) return;
-
         List<ArchivedStay> list = careHome.getArchives();
-
         backing.setAll(list);
-
         stays.setPredicate(st -> true);
         lblInfo.setText(list.size() + " record(s)");
-
         if (!list.isEmpty()) {
             tblStays.getSelectionModel().select(0);
         }
     }
-
-
 
     private void showStay(ArchivedStay s) {
         if (s == null) {
@@ -118,12 +130,15 @@ public class ArchivesController {
             tblPresc.getItems().clear(); tblAdmins.getItems().clear();
             return;
         }
-        lblName.setText(s.residentName);   lblId.setText(s.residentId);
-        lblGender.setText(s.gender.name()); lblAge.setText(String.valueOf(s.age));
-        lblWhen.setText(TS.format(s.dischargedAt)); lblBed.setText(s.lastBedId);
+        lblName.setText(safe(s.residentName));
+        lblId.setText(safe(s.residentId));
+        lblGender.setText(s.gender == null ? "" : s.gender.name());
+        lblAge.setText(String.valueOf(s.age));
+        lblWhen.setText(fmt(s.dischargedAt));
+        lblBed.setText(safe(s.lastBedId));
 
-        tblPresc.getItems().setAll(s.prescriptions);
-        tblAdmins.getItems().setAll(s.administrations);
+        tblPresc.getItems().setAll(s.prescriptions == null ? List.of() : s.prescriptions);
+        tblAdmins.getItems().setAll(s.administrations == null ? List.of() : s.administrations);
     }
 
     private void exportCsv() {
@@ -133,12 +148,12 @@ public class ArchivesController {
                 w.write("discharged,residentId,name,gender,age,lastBed\n");
                 for (var s : stays) {
                     w.write(String.join(",",
-                            TS.format(s.dischargedAt),
-                            s.residentId,
-                            escape(s.residentName),
-                            s.gender.name(),
+                            fmt(s.dischargedAt),
+                            safe(s.residentId),
+                            escape(safe(s.residentName)),
+                            s.gender == null ? "" : s.gender.name(),
                             Integer.toString(s.age),
-                            s.lastBedId));
+                            safe(s.lastBedId)));
                     w.write("\n");
                 }
             }
@@ -149,7 +164,6 @@ public class ArchivesController {
     }
 
     private static String escape(String s) {
-        if (s == null) return "";
         if (s.contains(",") || s.contains("\"")) return '"' + s.replace("\"", "\"\"") + '"';
         return s;
     }
