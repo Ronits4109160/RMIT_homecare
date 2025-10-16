@@ -1,5 +1,7 @@
 package carehome.model;
 
+
+//  log entry that a dose was given.
 import java.io.Serializable;
 import java.time.LocalDateTime;
 

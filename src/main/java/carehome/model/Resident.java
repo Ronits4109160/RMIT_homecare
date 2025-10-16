@@ -1,5 +1,7 @@
 package carehome.model;
 
+
+//  represents a resident in the home.
 import java.io.Serializable;
 
 public final class Resident implements Serializable {

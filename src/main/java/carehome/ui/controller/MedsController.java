@@ -1,5 +1,7 @@
 package carehome.ui.controller;
 
+
+// controller for the Meds screen.
 import carehome.exception.NotFoundException;
 import carehome.model.*;
 import carehome.service.CareHome;
@@ -20,7 +22,7 @@ public class MedsController {
 
     @FXML private Label lblUser, lblResident, lblGender, lblAge, lblInfo;
 
-    // Dropdown for bed selection (occupied beds by default)
+    // Dropdown for bed selection
     @FXML private ComboBox<String> cmbBedId;
 
     @FXML private TableView<Prescription> tblPrescriptions;

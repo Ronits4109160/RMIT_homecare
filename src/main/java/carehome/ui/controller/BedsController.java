@@ -1,5 +1,8 @@
 package carehome.ui.controller;
 
+
+// Controller for the Beds screen : shows all beds, selection details,
+// and allows role-based actions (add/move/discharge).
 import carehome.exception.NotFoundException;
 import carehome.model.*;
 import carehome.service.CareHome;
@@ -16,8 +19,9 @@ public class BedsController {
 
     @FXML private FlowPane ward1Pane;
     @FXML private FlowPane ward2Pane;
-
+    // Bed detail panel
     @FXML private Label lblBedId, lblStatus, lblResident, lblGender, lblAge;
+
     @FXML private Button btnAddResident, btnMoveResident, btnDischarge;
     @FXML private TextField txtTargetBed;
     @FXML private Label lblInfo;
@@ -28,11 +32,13 @@ public class BedsController {
 
     private String selectedBedId;
 
+//     Injects application context and applies role-based UI permissions.
+
     public void setContext(CareHome ch, Staff user, MainController main) {
         this.careHome = ch;
         this.currentUser = user;
         this.main = main;
-
+        // Role flags for readability
         boolean isManager = user.getRole() == Role.MANAGER;
         boolean isNurse   = user.getRole() == Role.NURSE;
         boolean isDoctor  = user.getRole() == Role.DOCTOR;
@@ -45,6 +51,7 @@ public class BedsController {
         reloadBeds();
     }
 
+//    * Rebuilds the bed lists and repaints both ward panes.
     private void reloadBeds() {
         Map<String,Bed> beds = careHome.getBeds();
         List<String> allIds = new ArrayList<>(beds.keySet());
@@ -60,6 +67,7 @@ public class BedsController {
         if (!allIds.isEmpty()) selectBed(allIds.get(0)); else clearDetails();
     }
 
+//    * Creates a clickable Button for a bed. Button color indicates occupancy/gender.
     private Button createBedNode(String bedId) {
         Button b = new Button(bedId);
         b.setMinSize(64, 40);
@@ -73,7 +81,7 @@ public class BedsController {
         b.setOnAction(e -> selectBed(bedId));
         return b;
     }
-
+   //      Selects a bed and updates the detail panel (status + occupant info)
     private void selectBed(String bedId) {
         this.selectedBedId = bedId;
         Resident occ = safeResident(bedId);
@@ -90,7 +98,7 @@ public class BedsController {
             lblAge.setText(String.valueOf(occ.age));
         }
     }
-
+    /** Clears the detail panel when nothing is selected. */
     private void clearDetails() {
         selectedBedId = null;
         lblBedId.setText("-");

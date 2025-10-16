@@ -1,5 +1,7 @@
 package carehome.persistence;
 
+
+// small helper class.
 import carehome.model.*;
 import carehome.service.CareHome;
 

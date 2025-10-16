@@ -1,5 +1,7 @@
 package carehome.ui.controller;
 
+
+// controller for the Shift screen.
 import carehome.model.Role;
 import carehome.model.Shift;
 import carehome.model.Staff;
@@ -20,9 +22,9 @@ public class ShiftController {
     // Form fields
     @FXML private ComboBox<String> cmbStaffId;
     @FXML private DatePicker dpStartDate;
-    @FXML private TextField txtStartTime;   // "HH:MM"
+    @FXML private TextField txtStartTime;
     @FXML private DatePicker dpEndDate;
-    @FXML private TextField txtEndTime;     // "HH:MM"
+    @FXML private TextField txtEndTime;
     @FXML private Button btnAdd, btnClear;
 
     // Table

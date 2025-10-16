@@ -1,5 +1,7 @@
 package carehome.model;
 
+
+// history record after discharge.
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;

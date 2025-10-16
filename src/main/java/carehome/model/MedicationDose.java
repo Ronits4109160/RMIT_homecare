@@ -1,5 +1,7 @@
 package carehome.model;
 
+
+// one medication entry
 import java.io.Serializable;
 
 public class MedicationDose implements Serializable {

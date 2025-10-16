@@ -1,5 +1,7 @@
 package carehome.ui.controller;
 
+
+// controller for the Login screen.
 import carehome.model.Staff;
 import carehome.service.CareHome;
 import javafx.fxml.FXML;
