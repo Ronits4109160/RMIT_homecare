@@ -1,5 +1,7 @@
 package carehome.ui.controller;
 
+
+// controller for the Staff screen.
 import carehome.model.Role;
 import carehome.model.Staff;
 import carehome.service.CareHome;
@@ -33,7 +35,7 @@ public class StaffController {
 
     private final ObservableList<Staff> staffData = FXCollections.observableArrayList();
 
-    /** Preferred setter: called by MainController after load */
+    /**  called by MainController after load */
     public void setContext(CareHome ch, Staff user, MainController main) {
         this.careHome = ch;
         this.currentUser = user;

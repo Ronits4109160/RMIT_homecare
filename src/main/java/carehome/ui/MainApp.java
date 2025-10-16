@@ -1,5 +1,7 @@
 package carehome.ui;
 
+
+// small helper class.
 import carehome.model.Role;
 import carehome.model.Staff;
 import carehome.service.CareHome;
@@ -20,12 +22,12 @@ public class MainApp extends Application {
         careHome = new CareHome();
         if (!careHome.hasAnyBeds()) careHome.seedDefaultLayout();
 
-        // seed minimal accounts so you can log in
+        // seed minimal accounts so we can log in
         careHome.addOrUpdateStaff("M1", new Staff("M1","Manager", Role.MANAGER), "manager","pass");
         careHome.addOrUpdateStaff("M1", new Staff("D1","Dr Alice", Role.DOCTOR), "alice","pass");
         careHome.addOrUpdateStaff("M1", new Staff("N1","Nurse Bob", Role.NURSE), "bob","pass");
 
-        // optional shifts today (so doctor/nurse are rostered)
+        // optional shifts for today (so doctor/nurse are rostered)
         var today = LocalDate.now();
         careHome.allocateShift("M1", new carehome.model.Shift("N1", today.atTime(8,0),  today.atTime(16,0)));
 

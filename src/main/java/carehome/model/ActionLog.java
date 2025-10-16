@@ -1,5 +1,7 @@
 package carehome.model;
 
+
+// small event log entry.
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
@@ -15,7 +17,7 @@ public class ActionLog implements Serializable {
         this(staffId, action, LocalDateTime.now());
     }
 
-    // NEW: lets JDBC restore the exact timestamp
+    // lets JDBC restore the exact timestamp
     public ActionLog(String staffId, String action, LocalDateTime time) {
         this.staffId = staffId;
         this.action = action;

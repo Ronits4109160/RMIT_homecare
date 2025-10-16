@@ -1,5 +1,7 @@
 package carehome.service;
 
+
+//  central rules + storage for the care home.
 import carehome.exception.*;
 import carehome.model.*;
 
@@ -93,7 +95,7 @@ public class CareHome implements Serializable {
 
 
 
-    /** Returns the resident occupying a bed (if any). */
+    /** Returns the resident occupying a bed  */
     public Resident getResidentInBed(String actorId, String bedId) {
         Bed b = beds.get(bedId);
         if (b == null)
@@ -199,7 +201,7 @@ public class CareHome implements Serializable {
             if (hours != 1) throw new ShiftRuleException("Doctor shift must be exactly 1 hour.");
         }
 
-        // self-overlap guard (uses your Shift.overlaps, i.e., same staff only)
+        // self-overlap guard -uses your Shift.overlaps means same staff only)
         boolean overlapsSelf = shifts.stream().anyMatch(s -> s.overlaps(shift));
         if (overlapsSelf)
             throw new ShiftRuleException("Overlapping shift for " + shift.getStaffId());
@@ -259,7 +261,7 @@ public class CareHome implements Serializable {
             }
         }
 
-        // Nurse coverage: at least one 08–16 and one 14–22 per day
+        // Nurse coverage : at least one 08–16 and one 14–22 per day
         for (var date : allDates) {
             boolean hasMorning = false, hasEvening = false;
             for (String nid : nurseIds) {

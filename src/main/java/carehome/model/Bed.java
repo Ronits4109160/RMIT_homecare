@@ -1,5 +1,7 @@
 package carehome.model;
 
+
+//  one bed slot and who is in it.
 import java.io.Serializable;
 
 public class Bed implements Serializable {

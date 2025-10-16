@@ -1,5 +1,7 @@
 package carehome.ui.controller;
 
+
+// controller for the Main screen.
 import carehome.model.Role;
 import carehome.model.Staff;
 import carehome.service.CareHome;

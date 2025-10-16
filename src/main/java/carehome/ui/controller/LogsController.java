@@ -1,5 +1,7 @@
 package carehome.ui.controller;
 
+
+// controller for the Logs screen.
 import carehome.model.ActionLog;
 import carehome.model.Role;
 import carehome.model.Staff;
@@ -42,7 +44,7 @@ public class LogsController {
         this.currentUser = user;
         this.main = main;
 
-        // Create/init store (idempotent); change path if you want a custom location
+        // Create/init store
         this.store = new JdbcStore("jdbc:sqlite:carehome.db");
         this.store.init();
 

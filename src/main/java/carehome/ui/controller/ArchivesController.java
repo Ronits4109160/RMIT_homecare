@@ -1,5 +1,7 @@
 package carehome.ui.controller;
 
+
+// controller for the Archives screen.
 import carehome.model.*;
 import carehome.service.CareHome;
 import javafx.beans.binding.Bindings;

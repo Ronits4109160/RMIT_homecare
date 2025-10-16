@@ -1,5 +1,7 @@
 package carehome.model;
 
+
+//  simple holder for staff details and role.
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -7,11 +9,11 @@ import java.util.Objects;
 public class Staff implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private final String id;       // e.g. M1, D1, N3
+    private final String id;       //  M1, D1, N3
     private String name;
     private Role role;
 
-    // Credentials (set by manager)
+    // Credentials
     private String username;
     private String password; // plain for assignment scope
 
