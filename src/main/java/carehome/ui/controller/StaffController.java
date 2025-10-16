@@ -85,37 +85,59 @@ public class StaffController {
     }
 
     private void saveStaff() {
-        // hard guard
+        // Only managers can save staff
         if (main != null && !main.requireManager()) return;
 
         try {
             if (careHome == null) throw new IllegalStateException("CareHome not set");
 
-            String id = txtId.getText().trim();
-            String name = txtName.getText().trim();
-            Role role = choiceRole.getValue();
+            String id       = txtId.getText().trim();
+            String name     = txtName.getText().trim();
+            Role role       = choiceRole.getValue();
             String username = txtUsername.getText().trim();
             String password = txtPassword.getText();
 
             if (id.isEmpty() || name.isEmpty() || role == null)
                 throw new IllegalArgumentException("ID, Name and Role are required.");
-
             if (username.isEmpty())
                 throw new IllegalArgumentException("Username is required.");
 
-            Staff s = new Staff(id, name, role);
+            boolean existedBefore = careHome.getStaffById().containsKey(id);
 
-            // actor is the current logged-in user
+            // Actor is the current logged-in user
             String actorId = (currentUser != null) ? currentUser.getId() : null;
             if (actorId == null) throw new IllegalStateException("No logged-in user context.");
 
+            Staff s = new Staff(id, name, role);
             careHome.addOrUpdateStaff(actorId, s, username, password);
 
             refreshTable();
             clearForm();
-            info("Saved staff: " + s.getId());
+
+            // Popup confirmation
+            String title = existedBefore ? "Staff Updated" : "Staff Created";
+            String msg   = String.format("%s (%s) \"%s\" was %s.",
+                    role, id, name, existedBefore ? "updated" : "created");
+
+            if (main != null) {
+                main.showInfo(title, msg);           // uses MainController helper
+            } else {
+                // Fallback if main is null
+                new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.INFORMATION, msg,
+                        javafx.scene.control.ButtonType.OK
+                ) {{ setHeaderText(title); }}.showAndWait();
+            }
+
         } catch (Exception ex) {
-            error("Error: " + ex.getMessage());
+            if (main != null) {
+                main.showError("Save Failed", ex.getMessage());
+            } else {
+                new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.ERROR, ex.getMessage(),
+                        javafx.scene.control.ButtonType.OK
+                ) {{ setHeaderText("Save Failed"); }}.showAndWait();
+            }
         }
     }
 

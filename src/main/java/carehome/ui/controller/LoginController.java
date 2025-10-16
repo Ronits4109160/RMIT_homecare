@@ -9,6 +9,8 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
+import javafx.application.Platform;
+
 
 /**
  * Handles the login screen (ID + password).
@@ -59,7 +61,7 @@ public class LoginController {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/carehome/ui/MainView.fxml"));
             Scene scene = new Scene(loader.load());
 
-            // Pass context 3 to the main controller
+            // Pass context to the main controller
             MainController mc = loader.getController();
             mc.setContext(careHome, current);
 
@@ -69,8 +71,13 @@ public class LoginController {
             stage.setScene(scene);
             stage.show();
 
+            //  Show success popup after main window is visible
+            Platform.runLater(() ->
+                    mc.showInfo("Login Successful",
+                            "Welcome, " + current.getName() + " (" + current.getRole() + ")")
+            );
+
         } catch (Exception ex) {
-            // Showing friendly error without stack trace
             lblError.setText("Login failed: " + ex.getMessage());
         }
     }

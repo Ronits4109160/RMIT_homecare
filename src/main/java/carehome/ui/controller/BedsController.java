@@ -138,17 +138,34 @@ public class BedsController {
             // Pass null ID so CareHome auto-generates R{N+1}
             Resident r = new Resident(null, name.get().trim(), gender, age);
 
+            // persist
             careHome.addResidentToBed(currentUser.getId(), selectedBedId, r);
 
-            info("Resident added to " + selectedBedId + " with ID " + r.id);
+            // refresh UI
             reloadBeds();
             selectBed(selectedBedId);
+
+            // success popup (owned by main window)
+            String title = "Resident Added";
+            String msg   = "Resident " + r.name + " (" + r.id + ") added to " + selectedBedId + ".";
+            if (main != null) {
+                main.showInfo(title, msg);
+            } else {
+                new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK) {{
+                    setHeaderText(title);
+                }}.showAndWait();
+            }
+
+            // optional inline status text
+            info("Resident added to " + selectedBedId + " with ID " + r.id);
+
         } catch (NumberFormatException nfe) {
             err("Please enter a valid numeric age.");
         } catch (Exception ex) {
             err(ex.getMessage());
         }
     }
+
 
     @FXML
     private void handleMoveResident() {

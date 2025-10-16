@@ -14,11 +14,14 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.scene.control.ButtonType;
+import javafx.stage.Window;
+
 
 public class MainController {
 
     @FXML private Button btnStaff;
-    @FXML private Button btnShifts;      // NEW
+    @FXML private Button btnShifts;
     @FXML private Button btnResidents;
     @FXML private Button btnLogs;
     @FXML private Button btnArchive;
@@ -71,14 +74,41 @@ public class MainController {
     public Staff getCurrent()     { return current; }
     public CareHome getCareHome() { return careHome; }
 
+//    public void showInfo(String header, String msg) {
+//        var a = new Alert(Alert.AlertType.INFORMATION, msg);
+//        a.setHeaderText(header);
+//        a.showAndWait();
+//    }
+//    public void showError(String header, String msg) {
+//        var a = new Alert(Alert.AlertType.ERROR, msg);
+//        a.setHeaderText(header);
+//        a.showAndWait();
+//    }
+
+    private Window getWindow() {
+        try {
+            if (contentArea != null && contentArea.getScene() != null) {
+                return contentArea.getScene().getWindow();
+            }
+            if (btnLogout != null && btnLogout.getScene() != null) {
+                return btnLogout.getScene().getWindow();
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
     public void showInfo(String header, String msg) {
-        var a = new Alert(Alert.AlertType.INFORMATION, msg);
+        var a = new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK);
         a.setHeaderText(header);
+        Window owner = getWindow();
+        if (owner != null) a.initOwner(owner);
         a.showAndWait();
     }
+
     public void showError(String header, String msg) {
-        var a = new Alert(Alert.AlertType.ERROR, msg);
+        var a = new Alert(Alert.AlertType.ERROR, msg, ButtonType.OK);
         a.setHeaderText(header);
+        Window owner = getWindow();
+        if (owner != null) a.initOwner(owner);
         a.showAndWait();
     }
 

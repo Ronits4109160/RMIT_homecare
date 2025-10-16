@@ -94,6 +94,7 @@ public class ShiftController {
                 error("Please fill all fields (staff, start/end date & time).");
                 return;
             }
+
             LocalDateTime start = LocalDateTime.of(sd, st);
             LocalDateTime end   = LocalDateTime.of(ed, et);
             if (!end.isAfter(start)) {
@@ -101,16 +102,36 @@ public class ShiftController {
                 return;
             }
 
-            // call backend
-            careHome.allocateShift(currentUser.getId(), new Shift(sid, start, end));
-            info("Allocated shift for " + sid + ": " + start + " → " + end);
+            // call backend (validates nurse/doctor rules)
+            Shift shift = new Shift(sid, start, end);
+            careHome.allocateShift(currentUser.getId(), shift);
+
+            // refresh UI
             refreshTable();
             handleClear();
+
+            // success popup
+            String msg = String.format(
+                    "Shift for %s allocated:\n%s  →  %s",
+                    sid,
+                    shift.getStart().toString(),
+                    shift.getEnd().toString()
+            );
+
+            if (main != null) {
+                main.showInfo("Shift Allocated", msg);
+            } else {
+                new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK) {{
+                    setHeaderText("Shift Allocated");
+                }}.showAndWait();
+            }
+
+            info("Allocated shift for " + sid + ": " + start + " → " + end);
+
         } catch (Exception ex) {
             error(ex.getMessage());
         }
     }
-
     @FXML
     private void handleClear() {
         cmbStaffId.getSelectionModel().clearSelection();
